@@ -2,25 +2,34 @@ import { useThemeStore } from '../store/useThemeStore'
 import Navbar from '../components/homepage/Navbar'
 import Hero from '../components/homepage/Hero'
 import Aurora from '../components/homepage/Aurora'
-import styles from './HomePage.module.css'
 
 const DARK_STOPS = ['#E8B84B', '#C47A15', '#8B4513']
-const LIGHT_STOPS = ['#f5d07a', '#e8b84b', '#f9f0d8']
+const LIGHT_STOPS = ['#e8b84b', '#d4a017', '#c8a96e']
 
 export default function HomePage() {
   const { mode } = useThemeStore()
+  const isDark = mode === 'dark'
 
   return (
-    <div className={styles.page}>
-      <div className={styles.aurora}>
+    <div
+      className="relative flex flex-col h-dvh overflow-hidden"
+      style={{ background: 'var(--bg)' }}
+    >
+      {/* Aurora background */}
+      <div
+        className="fixed inset-0 z-0"
+        style={{ opacity: isDark ? 1 : 0.4 }}
+      >
         <Aurora
-          colorStops={mode === 'dark' ? DARK_STOPS : LIGHT_STOPS}
-          blend={mode === 'dark' ? 0.5 : 0.3}
+          colorStops={isDark ? DARK_STOPS : LIGHT_STOPS}
+          blend={isDark ? 0.5 : 0.6}
           amplitude={1.1}
           speed={0.35}
         />
       </div>
-      <div className={styles.content}>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-full">
         <Navbar />
         <Hero />
       </div>

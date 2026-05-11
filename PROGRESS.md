@@ -48,3 +48,29 @@ Key decisions: ogl over three.js (lighter), CSS Modules throughout, Mermaid lazy
 **Commit suggestion:** feat: scaffold + design system + homepage + app shell
 
 ---
+
+## [2026-05-12] Migrate to Tailwind CSS v4
+
+**Reason:** User wanted Tailwind for the website UI, with light/dark theming defined in global CSS.
+
+**What changed:**
+- Installed `tailwindcss@4.3.0` + `@tailwindcss/vite@4.3.0` (no config file, CSS-first)
+- Updated `vite.config.js` to add `tailwindcss()` Vite plugin
+- Merged `tokens.css` into `global.css`. Global CSS now starts with `@import "tailwindcss"` followed by all CSS vars in `[data-theme='dark']` and `[data-theme='light']` blocks. Deleted `tokens.css`.
+- Created `src/styles/document.css` - plain global CSS scoped to `.markeon-document` class. Applied to the preview pane's rendered HTML. This is the document typography layer (headings, code, tables, blockquotes, etc.) and works for both browser preview and `window.print()`. This replaces `PreviewPane.module.css` which couldn't work with `dangerouslySetInnerHTML`.
+- Deleted all 9 `.module.css` files.
+- Rewrote all JSX components with Tailwind utility classes. CSS vars referenced via inline `style` props for themed colors (`bg-[var(--bg)]` pattern where needed, inline `style` for dynamic vars).
+
+**Homepage light mode fix:**
+- Light mode Aurora now uses warmer gold color stops (`#e8b84b`, `#d4a017`, `#c8a96e`) and `blend: 0.6` at `opacity: 0.4` on the container. Previously was white/grey wash with the dark color stops at low opacity which looked muddy.
+- Added `--hero-glow` CSS token (dark mode only) for the wordmark text-shadow effect.
+
+**Approach for theming:**
+- All color tokens stay as CSS custom properties in `global.css` - not Tailwind theme config.
+- Tailwind handles: layout (flex, grid), spacing (p-4, gap-2), sizing (w-full, h-dvh), typography scale utilities, transitions, rounded, border, z-index.
+- CSS vars handle: all colors, glassmorphism values, font families, document token system.
+- This keeps the two systems cleanly separated.
+
+**Commit suggestion:** `refactor: migrate UI to Tailwind CSS v4, fix light mode homepage`
+
+---
