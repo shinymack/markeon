@@ -1,0 +1,22 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--editor-bg);
+  overflow: hidden;
+}
+
+.editor {
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor .cm-editor {
+  height: 100%;
+  outline: none;
+}
+
+.editor .cm-scroller {
+  overflow: auto;
+  height: 100%;
+}

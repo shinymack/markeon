@@ -1,0 +1,115 @@
+/* ============================================================
+   Markeon Design Tokens
+   Umbreon palette: near-blacks + amber-gold accent
+   ============================================================ */
+
+:root {
+  /* Typography - UI shell */
+  --font-ui: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+
+  /* Typography - document (overridden by theme) */
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Source Serif 4', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Base sizing */
+  --doc-base-size: 13pt;
+  --doc-line-height: 1.7;
+  --doc-type-scale: 1.333;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms ease;
+
+  /* Sidebar / layout */
+  --sidebar-width: 240px;
+  --inspector-width: 280px;
+  --toolbar-height: 44px;
+  --tab-height: 36px;
+}
+
+/* Dark mode (default) */
+[data-theme='dark'] {
+  --bg: #0c0c0c;
+  --surface: #111111;
+  --surface-raised: #191919;
+  --border: #242424;
+  --border-subtle: #1c1c1c;
+  --text-primary: #f0eded;
+  --text-secondary: #c8c4c0;
+  --text-muted: #888888;
+  --text-disabled: #444444;
+  --accent: #e8b84b;
+  --accent-hover: #f5cb6a;
+  --accent-dim: #e8b84b22;
+  --accent-text: #0c0c0c;
+  --destructive: #e05c5c;
+  --destructive-dim: #e05c5c22;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.8);
+
+  /* Editor specific */
+  --editor-bg: #0e0e0e;
+  --preview-bg: #ffffff;
+  --preview-text: #111111;
+  --page-shadow: 0 4px 24px rgba(0, 0, 0, 0.8);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(17, 17, 17, 0.72);
+  --glass-blur: blur(20px);
+  --glass-border: rgba(255, 255, 255, 0.07);
+}
+
+/* Light mode */
+[data-theme='light'] {
+  --bg: #f9f7f4;
+  --surface: #ffffff;
+  --surface-raised: #f0ede8;
+  --border: #e2ddd7;
+  --border-subtle: #eeebe6;
+  --text-primary: #111111;
+  --text-secondary: #444444;
+  --text-muted: #777777;
+  --text-disabled: #c0bbb5;
+  --accent: #b8860b;
+  --accent-hover: #9a7209;
+  --accent-dim: #b8860b18;
+  --accent-text: #ffffff;
+  --destructive: #c0392b;
+  --destructive-dim: #c0392b18;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  /* Editor specific */
+  --editor-bg: #f4f2ef;
+  --preview-bg: #ffffff;
+  --preview-text: #111111;
+  --page-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-blur: blur(20px);
+  --glass-border: rgba(0, 0, 0, 0.07);
+}
