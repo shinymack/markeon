@@ -14,6 +14,8 @@ function makeFile(name = 'untitled.md') {
   }
 }
 
+let _bootstrapping = false
+
 export const useFileStore = create(
   persist(
     (set, get) => ({
@@ -21,6 +23,8 @@ export const useFileStore = create(
       activeFileId: null,
 
       loadFiles: async () => {
+        if (_bootstrapping) return
+        _bootstrapping = true
         const files = await getAllFiles()
         if (files.length === 0) {
           const defaultFile = makeFile('welcome.md')
@@ -28,7 +32,8 @@ export const useFileStore = create(
           await saveFile(defaultFile)
           set({ files: [defaultFile], activeFileId: defaultFile.id })
         } else {
-          set({ files, activeFileId: get().activeFileId || files[0].id })
+          const activeId = get().activeFileId
+          set({ files, activeFileId: activeId && files.find(f => f.id === activeId) ? activeId : files[0].id })
         }
       },
 

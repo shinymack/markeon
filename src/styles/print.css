@@ -1,51 +1,126 @@
 /* ============================================================
-   Print CSS - injected when window.print() is called
-   Controls the PDF output appearance
+   Print CSS — Markeon
+   Strategy: hide all app chrome, render #preview-content as a
+   natural-flow block that the browser paginates across A4 pages.
+   No fixed/absolute positioning — that was killing multi-page export.
    ============================================================ */
 
 @media print {
-  /* Hide everything, then reveal only the preview document content */
-  body * {
-    visibility: hidden !important;
+  @page {
+    size: A4 portrait;
+    margin: 20mm;
   }
 
-  #preview-content,
-  #preview-content * {
-    visibility: visible !important;
-  }
-
-  #preview-content {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  body {
+  /* Nuclear hide of everything */
+  html, body {
     background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body > * {
+    display: none !important;
+  }
+
+  /* Reveal only our print root */
+  #markeon-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
   }
 
-  /* Page setup */
-  @page {
-    size: var(--print-page-size, A4) var(--print-orientation, portrait);
-    margin: var(--print-margin-top, 20mm) var(--print-margin-right, 20mm)
-      var(--print-margin-bottom, 20mm) var(--print-margin-left, 20mm);
+  #markeon-print-root * {
+    visibility: visible !important;
   }
 
-  /* Page breaks */
-  .page-break {
+  /* Document typography reset for print */
+  #markeon-print-root .markeon-document {
+    font-family: 'Source Serif 4', 'Georgia', serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    color: #111 !important;
+    background: white !important;
+  }
+
+  #markeon-print-root .markeon-document h1,
+  #markeon-print-root .markeon-document h2,
+  #markeon-print-root .markeon-document h3,
+  #markeon-print-root .markeon-document h4,
+  #markeon-print-root .markeon-document h5,
+  #markeon-print-root .markeon-document h6 {
+    color: #111 !important;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  #markeon-print-root .markeon-document h1 { font-size: 22pt; }
+  #markeon-print-root .markeon-document h2 { font-size: 16pt; }
+  #markeon-print-root .markeon-document h3 { font-size: 13pt; }
+
+  #markeon-print-root .markeon-document pre,
+  #markeon-print-root .markeon-document blockquote,
+  #markeon-print-root .markeon-document table,
+  #markeon-print-root .markeon-document figure {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  #markeon-print-root .markeon-document p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  #markeon-print-root .markeon-document pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #f5f5f0 !important;
+    border: 1px solid #ddd !important;
+    padding: 0.8em 1em;
+    font-size: 9pt;
+  }
+
+  #markeon-print-root .markeon-document code {
+    font-size: 9pt;
+    background: #f5f5f0 !important;
+    color: #333 !important;
+  }
+
+  #markeon-print-root .markeon-document img {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  #markeon-print-root .markeon-document a {
+    color: #111 !important;
+    text-decoration: underline;
+  }
+
+  /* Page break dividers become actual page breaks */
+  #markeon-print-root .markeon-document .page-break {
     page-break-before: always;
     break-before: page;
+    border: none !important;
+    margin: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
   }
 
-  p { orphans: 3; widows: 3; }
-  h1, h2, h3, h4, h5, h6 { page-break-after: avoid; break-after: avoid; }
-  pre, blockquote, figure, table { page-break-inside: avoid; break-inside: avoid; }
+  #markeon-print-root .markeon-document .page-break::after {
+    display: none !important;
+  }
 
-  img { max-width: 100% !important; page-break-inside: avoid; }
-  pre { white-space: pre-wrap; word-break: break-word; }
+  /* KaTeX */
+  #markeon-print-root .katex-display {
+    overflow: visible !important;
+  }
+
+  /* Hide Mermaid fallback labels */
+  #markeon-print-root .mermaid svg {
+    max-width: 100%;
+  }
 }
-

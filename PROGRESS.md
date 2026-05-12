@@ -74,3 +74,45 @@ Key decisions: ogl over three.js (lighter), CSS Modules throughout, Mermaid lazy
 **Commit suggestion:** `refactor: migrate UI to Tailwind CSS v4, fix light mode homepage`
 
 ---
+
+## [2026-05-12] Image support
+
+Three insertion methods, all convert to base64 data URIs embedded directly in the markdown content.
+
+**`src/lib/images.js`** - utilities:
+- `fileToBase64(file)` - wraps FileReader in a Promise, returns data URL
+- `insertImageMarkdown(view, dataUrl, altText)` - inserts `![alt](dataUrl)` at the CM6 cursor
+- `handleImageFile(view, file)` - combines both, returns true if handled
+- `isOversized(file)` - true if file > 1MB
+
+**`EditorPane.jsx` additions:**
+- `pasteHandler` - CM6 `EditorView.domEventHandlers({ paste })`. Scans `clipboardData.items` for `image/*`. If found, prevents default (stops OS text paste), reads file, inserts. Text paste is unaffected.
+- `onDragOver` / `onDragLeave` / `onDrop` - container-level drag events. Checks `dataTransfer.items` for images. On match, prevents browser from opening the image file.
+- File picker - hidden `<input type="file" accept="image/*">` ref'd to a button in the editor header bar. Click opens OS file picker.
+- `isDragging` state - shows full-editor overlay with dashed border and icon when dragging a valid image over the editor.
+- `sizeWarning` state - amber toast at bottom center if image > 1MB. Auto-dismisses after 4s, also has an X button.
+- `viewRef` - stores the CM6 view instance so drag/drop/picker handlers can access it outside the useEffect.
+
+**Alt text logic:** File picker and drag-drop use the filename (minus extension) as alt text. Clipboard paste uses `"image"` as the alt.
+
+**Commit suggestion:** `feat: image support - paste, drag-drop, file picker`
+
+---
+
+## [2026-05-12] Remove image feature, resizable splitter, A4 page preview, duplicate file fix
+
+**What changed:**
+
+- **Image insertion removed** (`EditorPane.jsx`): Stripped paste handler, drag-drop events, file picker button, size warning toast, `imagePreviewPlugin`, and all imports from `images.js` / `imageWidget.js`. Image support will be re-integrated later with a better approach (modal or sidebar panel, not inline base64 embeds).
+
+- **Resizable splitter** (`AppPage.jsx`): Draggable 6px handle between editor and preview. Split is clamped 20%-80%. Handle shows a subtle pill indicator that brightens on hover.
+
+- **A4 page preview** (`PreviewPane.jsx`): Preview now renders discrete A4 page cards (794x1123px). Content splits at `<!-- pagebreak -->` markers. Each card has shadow and a page number badge. Multiple pages stack vertically with gaps.
+
+- **Duplicate welcome.md fix** (`useFileStore.js`): Module-level `_bootstrapping` flag prevents React StrictMode's double `useEffect` invocation from calling `loadFiles` twice and creating two welcome files.
+
+- **Title bar**: `index.html` already has `<title>Markeon</title>` and correct SVG favicon. Stale browser tab from another project resolves with a hard refresh.
+
+**Commit suggestion:** `feat: A4 page preview, resizable splitter, remove image feature, fix duplicate welcome`
+
+---

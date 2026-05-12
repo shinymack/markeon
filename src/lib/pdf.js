@@ -4,22 +4,22 @@ export const PAPER_SIZES = {
   Legal: { width: '8.5in', height: '14in', label: 'Legal' },
 }
 
-export function buildPrintStyle({ pageSize, orientation, margins, watermark }) {
+export function buildPrintStyle({ pageSize, orientation, margins, watermark } = {}) {
   const size = PAPER_SIZES[pageSize] || PAPER_SIZES.A4
   const sizeValue = orientation === 'landscape'
     ? `${size.height} ${size.width}`
     : `${size.width} ${size.height}`
 
   const marginStr = [
-    margins.top ?? '20mm',
-    margins.right ?? '20mm',
-    margins.bottom ?? '20mm',
-    margins.left ?? '20mm',
+    margins?.top ?? '20mm',
+    margins?.right ?? '20mm',
+    margins?.bottom ?? '20mm',
+    margins?.left ?? '20mm',
   ].join(' ')
 
   const watermarkCSS = watermark
     ? `
-    #preview-pane::after {
+    #markeon-print-root::after {
       content: '${watermark}';
       position: fixed;
       top: 50%;
@@ -34,15 +34,17 @@ export function buildPrintStyle({ pageSize, orientation, margins, watermark }) {
     : ''
 
   return `
-    @page {
-      size: ${sizeValue};
-      margin: ${marginStr};
+    @media print {
+      @page {
+        size: ${sizeValue};
+        margin: ${marginStr};
+      }
+      ${watermarkCSS}
     }
-    ${watermarkCSS}
   `
 }
 
-export function triggerPrint(styleOverrides) {
+export function triggerPrint(styleOverrides, filename) {
   const existing = document.getElementById('markeon-print-override')
   if (existing) existing.remove()
 
@@ -53,5 +55,28 @@ export function triggerPrint(styleOverrides) {
     document.head.appendChild(style)
   }
 
+  const sourceEl = document.getElementById('markeon-all-pages')
+  if (!sourceEl) { window.print(); return }
+
+  let printRoot = document.getElementById('markeon-print-root')
+  if (!printRoot) {
+    printRoot = document.createElement('div')
+    printRoot.id = 'markeon-print-root'
+    document.body.appendChild(printRoot)
+  }
+
+  printRoot.innerHTML = sourceEl.innerHTML
+
+  const originalTitle = document.title
+  if (filename) {
+    document.title = filename.replace(/\.md$/i, '')
+  }
+
   window.print()
+
+  setTimeout(() => {
+    printRoot.innerHTML = ''
+    document.title = originalTitle
+  }, 1000)
 }
+

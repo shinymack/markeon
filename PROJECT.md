@@ -208,64 +208,45 @@ A theme is a JSON blob of CSS custom property values. Nothing structural - purel
 **Single file only.** No batch, no merge, no zip.
 
 Mechanism: `window.print()` with print CSS.
-- Print styles inject page size, margins, font embedding via `@font-face`
-- Page break overlays in preview show exact cut points
-- `<!-- pagebreak -->` comment = forced page break
+- `pdf.js:triggerPrint()` clones `#markeon-all-pages` into a `#markeon-print-root` div injected at the body root
+- `print.css` hides all `body > *`, reveals only `#markeon-print-root` as a natural-flow block
+- Browser paginates the block across as many pages as needed - no fixed/absolute positioning
+- `<!-- pagebreak -->` in markdown = `break-before: page` in print CSS
+- `document.title` is temporarily set to the active filename (minus `.md`) so the browser Save As dialog pre-fills the name
 
 Export settings per document:
-- Paper size: A4, Letter, Legal
+- Paper size: A4, Letter, Legal (via `@page { size: ... }` override)
 - Orientation: portrait / landscape
-- Margins: Top, Right, Bottom, Left (independent sliders)
-- Header/footer template with `{{page}}`, `{{total}}`, `{{title}}`, `{{date}}`, `{{author}}`
-- Watermark toggle
+- Margins: Top, Right, Bottom, Left
+- Watermark overlay (optional)
 
 Batch export and merged project PDF are v2.
 
 ---
 
-## Image Support (v1)
+## Image Support
 
-Images are embedded directly into the markdown content as base64 data URIs. No separate image store, no file references - the content is self-contained.
+**Deferred.** Removed from v1. The base64-embed approach (paste/drag/file-picker inserting `data:image/...` URIs into the markdown) bloated IndexedDB records and was not ergonomic.
 
-### Paste from clipboard (Ctrl+V)
-- Intercept `paste` event in the editor
-- Check `clipboardData.items` for `image/*` type
-- Read as `ArrayBuffer`, convert to base64
-- Insert at cursor: `![image](data:image/png;base64,...)`
-- If paste contains both text and an image, text takes priority (default browser behavior)
-
-### File picker upload
-- Button in toolbar (Format tab or dedicated image button)
-- `<input type="file" accept="image/*">` triggered programmatically
-- Read file as base64 via `FileReader`
-- Insert at cursor as markdown image syntax
-
-### Drag and drop into editor
-- Listen for `dragover` + `drop` events on the editor container
-- Extract image from `dataTransfer.files`
-- Same base64 conversion and insertion
-
-### Tradeoffs
-- Base64 embeds make file content larger but completely self-contained
-- No external URLs, no broken image links, works offline
-- Large images (>2MB) will bloat the IndexedDB record - show a warning at >1MB
+Will be re-implemented in a future milestone with a cleaner approach - likely a dedicated attachment panel or modal rather than inline cursor insertion.
 
 ---
 
 
 
-- [ ] Project scaffold (Vite + React + JSX, Bun, git init)
-- [ ] Design system: CSS custom properties, dark/light mode, font imports
-- [ ] Homepage: navbar, hero, Aurora animated bg, CTA
-- [ ] App shell: 3-pane layout, ribbon toolbar structure
-- [ ] Virtual file system: IndexedDB CRUD, sidebar file tree
-- [ ] Editor: CodeMirror 6, Markdown syntax, basic shortcuts
-- [ ] Live preview: remark + rehype pipeline, scroll sync
-- [ ] Rendering: KaTeX, Mermaid.js, Shiki integration
+- [x] Project scaffold (Vite + React + JSX, Bun, git init)
+- [x] Design system: CSS custom properties, dark/light mode, font imports
+- [x] Homepage: navbar, hero, Aurora animated bg, CTA
+- [x] App shell: 3-pane layout, ribbon toolbar, resizable editor/preview splitter
+- [x] Virtual file system: IndexedDB CRUD, sidebar file tree, no-duplicate bootstrap
+- [x] Editor: CodeMirror 6, Markdown syntax, basic shortcuts
+- [x] Live preview: remark + rehype pipeline, A4 page cards, zoom-to-fit scaling
+- [x] Rendering: KaTeX, Mermaid.js (lazy)
+- [ ] Shiki syntax highlighting
 - [ ] Theme system: token structure, theme picker gallery, live swap
-- [ ] Page layout controls: paper size, margins, orientation
-- [ ] PDF export: single file, window.print(), print CSS
-- [ ] Image support: paste from clipboard (Ctrl+V) and file picker upload
+- [ ] Page layout controls: paper size, margins, orientation (UI wired, not persisted)
+- [x] PDF export: multi-page, window.print(), natural-flow print CSS, filename in Save As
+- [ ] Image support (deferred - needs better UX design)
 - [ ] Style inspector panel (right sidebar)
 - [ ] Offline support: Service Worker + Cache API
 
@@ -290,59 +271,58 @@ Images are embedded directly into the markdown content as base64 data URIs. No s
 | JSX only, no TypeScript | Personal project, faster iteration |
 | No FSAPI | Browser compat (Chrome-only). Virtual FS in IndexedDB is simpler and universal |
 | window.print() for PDF | No canvas artifacts, pixel-accurate, no extra dependencies |
-| v1 = single PDF export | Ship the core loop first. Merge/batch are edge cases |
+| Print: clone to body root | `position:fixed` on `#preview-content` broke multi-page export. Cloning to a top-level div lets browser paginate naturally |
+| Preview = A4 page cards | Discrete pages match the print output. CSS scale transform handles zoom-to-fit when pane is narrow |
+| Image support deferred | base64 inline embeds bloated IndexedDB. Will re-implement with a proper attachment model |
+| Resizable splitter = % widths | Simpler than flex-basis manipulation. MouseMove sets splitPct clamped 20-80% |
 | react-bits Aurora = copy-paste | Not an npm package. Copy component code directly into project |
 | Bun for everything | Faster installs, consistent with user tooling |
 
 ---
 
-## File Structure (planned)
+## File Structure (current)
 
 ```
 markeon/
 ├── public/
-│   └── favicon.ico
+│   └── favicon.svg                 (Umbreon-style SVG icon)
 ├── src/
 │   ├── components/
 │   │   ├── homepage/
 │   │   │   ├── Navbar.jsx
 │   │   │   ├── Hero.jsx
-│   │   │   └── Aurora.jsx          (copy-pasted from react-bits)
+│   │   │   └── Aurora.jsx          (copy-pasted from react-bits, uses ogl)
 │   │   ├── editor/
-│   │   │   ├── EditorPane.jsx
-│   │   │   ├── PreviewPane.jsx
-│   │   │   └── ScrollSync.jsx
+│   │   │   ├── EditorPane.jsx      (CodeMirror 6, no image handling)
+│   │   │   └── PreviewPane.jsx     (A4 page cards, zoom-to-fit, #markeon-all-pages)
 │   │   ├── sidebar/
-│   │   │   ├── FileTree.jsx
-│   │   │   └── Outline.jsx
+│   │   │   └── FileTree.jsx
 │   │   ├── toolbar/
-│   │   │   └── RibbonToolbar.jsx
-│   │   ├── inspector/
-│   │   │   └── StyleInspector.jsx
-│   │   └── shared/
-│   │       ├── Button.jsx
-│   │       └── Modal.jsx
+│   │   │   └── RibbonToolbar.jsx   (Export PDF button passes filename to triggerPrint)
+│   │   └── inspector/
+│   │       └── StyleInspector.jsx  (placeholder)
 │   ├── store/
 │   │   ├── useEditorStore.js
 │   │   ├── useThemeStore.js
-│   │   └── useFileStore.js
+│   │   └── useFileStore.js         (_bootstrapping guard prevents duplicate welcome.md)
 │   ├── lib/
-│   │   ├── db.js                   (IndexedDB wrapper)
-│   │   ├── markdown.js             (remark + rehype pipeline)
-│   │   ├── themes.js               (built-in theme definitions)
-│   │   └── pdf.js                  (print CSS generation)
+│   │   ├── db.js                   (IndexedDB wrapper via idb)
+│   │   ├── markdown.js             (unified: remark + rehype + KaTeX)
+│   │   ├── nanoid.js
+│   │   ├── themes.js               (8 built-in theme token objects)
+│   │   └── pdf.js                  (buildPrintStyle + triggerPrint with filename)
 │   ├── styles/
-│   │   ├── tokens.css              (CSS custom properties)
-│   │   ├── global.css
-│   │   └── print.css               (PDF print styles)
+│   │   ├── global.css              (Tailwind v4 + Umbreon tokens)
+│   │   ├── document.css            (.markeon-document typography)
+│   │   └── print.css               (multi-page natural-flow print CSS)
 │   ├── pages/
 │   │   ├── HomePage.jsx
-│   │   └── AppPage.jsx
+│   │   └── AppPage.jsx             (resizable splitter, 20-80% clamped)
 │   ├── App.jsx
 │   └── main.jsx
-├── IDEA.md                         (original concept doc, do not edit)
-├── PROJECT.md                      (this file - source of truth)
-├── README.md
+├── IDEA.md
+├── PROJECT.md
+├── PROGRESS.md
 ├── index.html
 ├── vite.config.js
 ├── package.json
@@ -386,3 +366,36 @@ Check what peer dependencies the Aurora component needs (likely `three`, `@react
 
 Dark mode color stops: `["#E8B84B", "#C47A15", "#0C0C0C"]`
 Light mode: same stops at low opacity (~0.3).
+
+---
+
+## Git Commit Conventions
+
+This project keeps a clean, readable git history. Always provide a commit message after completing a feature or fix.
+
+### Format
+
+```
+<type>(<scope>): <short summary>
+```
+
+- `feat` - new feature or capability
+- `fix` - bug fix
+- `refactor` - code change with no behavior change
+- `style` - CSS / visual only changes
+- `docs` - PROJECT.md, PROGRESS.md, README changes
+- `chore` - config, tooling, dependency changes
+
+Scope is optional but use it when the change is clearly isolated: `editor`, `preview`, `pdf`, `toolbar`, `store`, `print`, `homepage`.
+
+### Examples
+
+```
+feat(preview): A4 page cards with zoom-to-fit scaling
+fix(store): prevent duplicate welcome.md on StrictMode double-invoke
+refactor(pdf): clone to body root for natural-flow multi-page print
+style(toolbar): always-visible accent splitter handle with grip dots
+docs: update PROJECT.md to reflect current implementation state
+```
+
+**After every completed feature or fix, always provide the commit message.**

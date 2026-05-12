@@ -13,7 +13,9 @@ const DEBOUNCE_MS = 400
 
 export default function EditorPane() {
   const editorRef = useRef(null)
+  const viewRef = useRef(null)
   const saveTimer = useRef(null)
+
   const { activeFileId, files, updateContent } = useFileStore()
   const { fontSize } = useEditorStore()
   const { mode } = useThemeStore()
@@ -58,13 +60,20 @@ export default function EditorPane() {
 
     const state = EditorState.create({ doc, extensions })
     const view = new EditorView({ state, parent: editorRef.current })
+    viewRef.current = view
 
-    return () => { view.destroy() }
-  }, [activeFileId, mode])
+    return () => { view.destroy(); viewRef.current = null }
+  }, [activeFileId, mode, !!activeFile])
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--editor-bg)' }}>
-      <div ref={editorRef} className="flex-1 overflow-hidden [&_.cm-editor]:h-full [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto [&_.cm-scroller]:h-full" />
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      style={{ background: 'var(--editor-bg)' }}
+    >
+      <div
+        ref={editorRef}
+        className="flex-1 overflow-hidden [&_.cm-editor]:h-full [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto [&_.cm-scroller]:h-full"
+      />
     </div>
   )
 }

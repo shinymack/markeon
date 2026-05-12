@@ -17,7 +17,7 @@ export default function RibbonToolbar() {
   const activeFile = files.find((f) => f.id === activeFileId)
 
   function handleExport() {
-    triggerPrint(buildPrintStyle(exportSettings))
+    triggerPrint(buildPrintStyle(exportSettings), activeFile?.name)
   }
 
   return (
