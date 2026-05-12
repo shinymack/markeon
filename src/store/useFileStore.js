@@ -11,6 +11,7 @@ function makeFile(name = 'untitled.md') {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     order: 0,
+    themeId: 'academic-serif',
   }
 }
 
@@ -87,6 +88,17 @@ export const useFileStore = create(
         const nextActive =
           activeFileId === id ? (remaining[0]?.id || null) : activeFileId
         set({ files: remaining, activeFileId: nextActive })
+      },
+
+      setFileTheme: async (id, themeId) => {
+        const { files } = get()
+        const file = files.find((f) => f.id === id)
+        if (!file) return
+        const updated = { ...file, themeId, updatedAt: Date.now() }
+        await saveFile(updated)
+        set((state) => ({
+          files: state.files.map((f) => (f.id === id ? updated : f)),
+        }))
       },
 
       reorderFiles: async (newOrder) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react'
 import { useFileStore } from '../../store/useFileStore'
 import { renderMarkdown, processPageBreaks } from '../../lib/markdown'
+import { getThemeById, BUILT_IN_THEMES } from '../../lib/themes'
 
 const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
@@ -12,15 +13,36 @@ function splitIntoPages(html) {
   return html.split(sep).map((s) => s.trim()).filter(Boolean)
 }
 
+function injectThemeStyle(theme) {
+  let styleEl = document.getElementById('markeon-doc-theme')
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = 'markeon-doc-theme'
+    document.head.appendChild(styleEl)
+  }
+  const pageBg = theme.tokens['--page-bg'] || '#ffffff'
+  const docVars = Object.entries(theme.tokens)
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join('\n')
+  styleEl.textContent = `:root { --page-bg: ${pageBg}; }\n.markeon-document {\n${docVars}\n}`
+}
+
 export default function PreviewPane() {
-  const content = useFileStore((s) => {
-    const file = s.files.find((f) => f.id === s.activeFileId)
-    return file?.content ?? ''
-  })
+  const { files, activeFileId } = useFileStore()
+  const activeFile = files.find((f) => f.id === activeFileId)
+  const content = activeFile?.content ?? ''
+  const themeId = activeFile?.themeId || 'academic-serif'
+  const activeTheme = getThemeById(themeId) || BUILT_IN_THEMES[0]
+  const pageBg = activeTheme.tokens['--page-bg'] || '#ffffff'
+
   const [pages, setPages] = useState([''])
   const wrapperRef = useRef(null)
   const allPagesRef = useRef(null)
   const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    injectThemeStyle(activeTheme)
+  }, [themeId])
 
   useEffect(() => {
     if (!content) { setPages([]); return }
@@ -102,7 +124,7 @@ export default function PreviewPane() {
                 style={{
                   width: `${A4_WIDTH_PX}px`,
                   minHeight: `${A4_HEIGHT_PX}px`,
-                  background: 'var(--preview-bg)',
+                  background: pageBg,
                   boxShadow: 'var(--page-shadow)',
                   padding: `${A4_PAD_V}px ${A4_PAD_H}px`,
                 }}

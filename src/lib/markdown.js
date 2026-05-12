@@ -6,29 +6,41 @@ import remarkRehype from 'remark-rehype'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 import rehypeStringify from 'rehype-stringify'
+import rehypeShikiFromHighlighter from '@shikijs/rehype/core'
+import { getHighlighter } from './shiki'
 
-const processor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkMath)
-  .use(remarkRehype, { allowDangerousHtml: true })
-  .use(rehypeRaw)
-  .use(rehypeKatex)
-  .use(rehypeStringify)
+let _processor = null
 
-export async function renderMarkdown(markdown) {
-  const result = await processor.process(markdown)
+async function getProcessor() {
+  if (_processor) return _processor
+  const highlighter = await getHighlighter()
+  _processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkMath)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeKatex)
+    .use(rehypeShikiFromHighlighter, highlighter, {
+      theme: 'one-dark-pro',
+      ignoreMissing: true,
+    })
+    .use(rehypeStringify)
+  return _processor
+}
+
+export async function renderMarkdown(content) {
+  const processor = await getProcessor()
+  const result = await processor.process(content)
   return String(result)
 }
 
-// Insert page break markers
 export function insertPageBreak(content, position) {
   const before = content.slice(0, position)
   const after = content.slice(position)
   return before + '\n<!-- pagebreak -->\n' + after
 }
 
-// Convert <!-- pagebreak --> to a div with a class for CSS
 export function processPageBreaks(html) {
   return html.replace(
     /<!--\s*pagebreak\s*-->/gi,

@@ -5,6 +5,7 @@ import { useThemeStore } from '../../store/useThemeStore'
 import { useEditorStore } from '../../store/useEditorStore'
 import { useFileStore } from '../../store/useFileStore'
 import { buildPrintStyle, triggerPrint } from '../../lib/pdf'
+import ThemePicker from './ThemePicker'
 
 const TABS = ['File', 'Format', 'Style', 'Layout', 'Export']
 
@@ -68,6 +69,10 @@ export default function RibbonToolbar() {
 
       {/* Right */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        <ThemePicker />
+
+        <div className="w-px h-4" style={{ background: 'var(--border)' }} />
+
         <button
           onClick={handleExport}
           className="flex items-center gap-1.5 px-3 py-[5px] rounded text-[12.5px] font-semibold cursor-pointer border-none transition-all duration-100 hover:brightness-110"

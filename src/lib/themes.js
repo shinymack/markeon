@@ -15,6 +15,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '16px',
       '--line-height': '1.6',
       '--type-scale': '1.25',
+      '--page-bg': '#ffffff',
     },
   },
   {
@@ -33,6 +34,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '16px',
       '--line-height': '1.7',
       '--type-scale': '1.25',
+      '--page-bg': '#ffffff',
     },
   },
   {
@@ -51,6 +53,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '12pt',
       '--line-height': '1.8',
       '--type-scale': '1.333',
+      '--page-bg': '#ffffff',
     },
   },
   {
@@ -64,11 +67,12 @@ export const BUILT_IN_THEMES = [
       '--color-text': '#e2e8f0',
       '--color-heading': '#e8b84b',
       '--color-accent': '#e8b84b',
-      '--color-code-bg': '#0d1117',
+      '--color-code-bg': '#161b22',
       '--color-border': '#30363d',
-      '--base-size': '14px',
+      '--base-size': '13px',
       '--line-height': '1.7',
       '--type-scale': '1.25',
+      '--page-bg': '#0d1117',
     },
   },
   {
@@ -87,6 +91,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '10.5pt',
       '--line-height': '1.4',
       '--type-scale': '1.2',
+      '--page-bg': '#ffffff',
     },
   },
   {
@@ -105,6 +110,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '11pt',
       '--line-height': '1.65',
       '--type-scale': '1.2',
+      '--page-bg': '#ffffff',
     },
   },
   {
@@ -123,6 +129,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '13pt',
       '--line-height': '1.8',
       '--type-scale': '1.25',
+      '--page-bg': '#fdf6ec',
     },
   },
   {
@@ -141,6 +148,7 @@ export const BUILT_IN_THEMES = [
       '--base-size': '12pt',
       '--line-height': '2',
       '--type-scale': '1.2',
+      '--page-bg': '#ffffff',
     },
   },
 ]
