@@ -8,6 +8,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { useFileStore } from '../../store/useFileStore'
 import { useEditorStore } from '../../store/useEditorStore'
 import { useThemeStore } from '../../store/useThemeStore'
+import { editorViewRef } from '../../lib/editorRef'
 
 const DEBOUNCE_MS = 400
 
@@ -61,8 +62,9 @@ export default function EditorPane() {
     const state = EditorState.create({ doc, extensions })
     const view = new EditorView({ state, parent: editorRef.current })
     viewRef.current = view
+    editorViewRef.current = view
 
-    return () => { view.destroy(); viewRef.current = null }
+    return () => { view.destroy(); viewRef.current = null; editorViewRef.current = null }
   }, [activeFileId, mode, !!activeFile])
 
   return (

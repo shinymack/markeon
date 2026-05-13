@@ -113,6 +113,85 @@ Three insertion methods, all convert to base64 data URIs embedded directly in th
 
 - **Title bar**: `index.html` already has `<title>Markeon</title>` and correct SVG favicon. Stale browser tab from another project resolves with a hard refresh.
 
+
 **Commit suggestion:** `feat: A4 page preview, resizable splitter, remove image feature, fix duplicate welcome`
+
+---
+
+## [2026-05-12] Visible splitter, page number removal, PDF filename
+
+**What changed:**
+
+- **Splitter** (`AppPage.jsx`): Replaced near-invisible gap with permanent 2px amber accent rail + three grip dots. Hovering tints with `--accent-dim`.
+- **Page number badge removed** (`PreviewPane.jsx`): `i+1 / pages.length` badge removed from each page card.
+- **PDF filename** (`pdf.js`, `RibbonToolbar.jsx`): `triggerPrint` now accepts `filename`. Sets `document.title = filename.replace('.md','')` before `window.print()`, restores after 1s.
+- **PROJECT.md updated**: Entire document synced to current implementation state. Git commit conventions section added.
+
+**Commit:** `style(toolbar): always-visible accent splitter, remove page badge, pdf filename in save dialog`
+
+---
+
+## [2026-05-13] Shiki syntax highlighting + per-file theme system
+
+**What changed:**
+
+- **`src/lib/shiki.js`** (new): Module-level singleton. Loads `one-dark-pro` + 20 languages. Returns cached Promise on repeated calls.
+- **`src/lib/markdown.js`**: Integrated `@shikijs/rehype/core` into unified pipeline. Processor cached after first async build. `ignoreMissing: true` prevents crashes on unknown languages.
+- **`src/store/useFileStore.js`**: `makeFile()` now includes `themeId: 'academic-serif'`. New `setFileTheme(id, themeId)` action persists to IndexedDB.
+- **`src/styles/document.css`**: Rewrote to align all var names with `themes.js` token keys. Added `.shiki` rules. Removed all hardcoded sizes.
+- **`src/components/toolbar/ThemePicker.jsx`** (new): 2-column popover grid of all 8 themes with accent swatch, name, tags, active checkmark. Closes on outside click.
+- **`src/components/editor/PreviewPane.jsx`**: Reads `themeId` from active file, calls `injectThemeStyle()` which writes `<style id="markeon-doc-theme">` to `<head>`. Page cards use theme's `--page-bg` directly.
+- **`vite.config.js`**: Added `@shikijs/rehype` to `optimizeDeps.exclude`.
+
+**Commit:** `feat: Shiki syntax highlighting + per-file theme system with live token swap`
+
+---
+
+## [2026-05-13] Dark mode PDF for Dark Tech theme
+
+**What changed:**
+
+- **`src/lib/themes.js`**: Added `--page-bg` to all 8 themes. Dark Tech: `#0d1117`, Warm Journal: `#fdf6ec`, others: `#ffffff`.
+- **`src/components/editor/PreviewPane.jsx`**: `injectThemeStyle()` now also sets `--page-bg` on `:root`. Page cards use `background: pageBg` from theme object.
+- **`src/styles/print.css`**: Added `print-color-adjust: exact` + `-webkit-print-color-adjust: exact` to `#markeon-print-root`. All hardcoded colors replaced with theme CSS vars.
+
+**Key insight:** `print-color-adjust: exact` is the critical property - without it Chromium strips backgrounds from the PDF regardless of what CSS you write.
+
+**Commit:** `feat(themes): dark-page PDF for Dark Tech, per-theme --page-bg token, print-color-adjust`
+
+---
+
+## [2026-05-13] Per-file layout controls (Layout tab)
+
+**What changed:**
+
+- **`src/store/useFileStore.js`**: Added `DEFAULT_LAYOUT` constant and `layoutSettings` field to every file record. New `setFileLayout(id, patch)` action deep-merges the patch and persists to IndexedDB.
+- **`src/lib/pdf.js`**: `buildPrintStyle()` now accepts `layoutSettings` directly (paperSize, orientation, margins, watermark).
+- **`src/components/toolbar/LayoutPanel.jsx`** (new): Compact 46px horizontal strip. Font Size + Line Spacing number inputs (8-20pt, 1.0-2.5), linked/free margin control, Paper Size chip group (A4/Letter/Legal), Orientation chip group (Portrait/Landscape). All wired to `setFileLayout`.
+- **`src/components/toolbar/ExportPanel.jsx`** (new): Per-file watermark text input + Export PDF button.
+- **`src/components/editor/PreviewPane.jsx`**: Full rewrite. Paper dimensions derived from `layoutSettings` using 96dpi mm-to-px conversion. Page card padding reflects actual margin values live. ResizeObserver uses dynamic paper width for zoom-to-fit.
+- **`src/pages/AppPage.jsx`**: Tab panel strip (46px) below toolbar header. Layout + Export tabs wired. Collapsible sidebar with 18px toggle rail. `activeTab` state lifted to AppPage.
+- **`src/components/toolbar/RibbonToolbar.jsx`**: Accepts `activeTab`/`onTabChange` props. Inline filename rename: click center to edit, Enter commits, Escape cancels, auto-appends `.md`. Check/X buttons properly spaced.
+
+**Commit:** `feat: layout controls, collapsible sidebar, inline filename rename, Export tab`
+
+---
+
+## [2026-05-13] Format tab + File tab
+
+**What changed:**
+
+- **`src/lib/editorRef.js`** (new): Module-level `{ current: null }` ref. Holds the active CodeMirror `EditorView` instance. Avoids prop drilling from EditorPane to any toolbar panel.
+- **`src/lib/formatCommands.js`** (new): All markdown formatting operations as pure CM6 transactions:
+  - `wrapSelection(before, after)` - handles empty vs selected text
+  - `toggleLinePrefix(prefix)` - multi-line aware, toggles intelligently
+  - `setHeading(level)` - strips existing heading before applying
+  - Exports: `bold`, `italic`, `strikethrough`, `inlineCode`, `codeBlock`, `h1`, `h2`, `h3`, `blockquote`, `bulletList`, `orderedList`, `link`, `horizontalRule`, `table`
+- **`src/components/editor/EditorPane.jsx`**: Sets `editorViewRef.current` on view create, clears on destroy.
+- **`src/components/toolbar/FormatPanel.jsx`** (new): Three groups (Headings, Inline, Blocks) as 46px strip. Each button shows icon + label text, hover highlight, keyboard shortcut in title.
+- **`src/components/toolbar/FilePanel.jsx`** (new): New File, Duplicate (copies content), Import .md (FileReader → createFile + updateContent), Export .md (Blob download), Delete (with confirm guard). Delete styled red.
+- **`src/pages/AppPage.jsx`**: File + Format tabs registered in `TAB_PANELS`.
+
+**Commit:** `feat(toolbar): Format tab + File tab - markdown formatting commands and file operations`
 
 ---

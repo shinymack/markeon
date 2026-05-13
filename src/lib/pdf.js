@@ -4,17 +4,24 @@ export const PAPER_SIZES = {
   Legal: { width: '8.5in', height: '14in', label: 'Legal' },
 }
 
-export function buildPrintStyle({ pageSize, orientation, margins, watermark } = {}) {
-  const size = PAPER_SIZES[pageSize] || PAPER_SIZES.A4
+export function buildPrintStyle(layoutSettings = {}) {
+  const {
+    paperSize = 'A4',
+    orientation = 'portrait',
+    margins = {},
+    watermark = '',
+  } = layoutSettings
+
+  const size = PAPER_SIZES[paperSize] || PAPER_SIZES.A4
   const sizeValue = orientation === 'landscape'
     ? `${size.height} ${size.width}`
     : `${size.width} ${size.height}`
 
   const marginStr = [
-    margins?.top ?? '20mm',
-    margins?.right ?? '20mm',
-    margins?.bottom ?? '20mm',
-    margins?.left ?? '20mm',
+    margins.top ?? '20mm',
+    margins.right ?? '20mm',
+    margins.bottom ?? '20mm',
+    margins.left ?? '20mm',
   ].join(' ')
 
   const watermarkCSS = watermark

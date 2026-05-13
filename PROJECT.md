@@ -242,13 +242,16 @@ Will be re-implemented in a future milestone with a cleaner approach - likely a 
 - [x] Editor: CodeMirror 6, Markdown syntax, basic shortcuts
 - [x] Live preview: remark + rehype pipeline, A4 page cards, zoom-to-fit scaling
 - [x] Rendering: KaTeX, Mermaid.js (lazy)
-- [ ] Shiki syntax highlighting
-- [ ] Theme system: token structure, theme picker gallery, live swap
-- [ ] Page layout controls: paper size, margins, orientation (UI wired, not persisted)
+- [x] Shiki syntax highlighting: one-dark-pro, 20 languages, singleton via @shikijs/rehype
+- [x] Theme system: 8 built-in themes, per-file themeId, live token injection, ThemePicker popover
+- [x] Page layout controls: per-file font scale, margins, line height, paper size via Layout tab
 - [x] PDF export: multi-page, window.print(), natural-flow print CSS, filename in Save As
+- [x] Format tab: Bold, Italic, Strike, Inline Code, Link, H1/H2/H3, Blockquote, Lists, Code Block, Table, Divider
+- [x] File tab: New, Duplicate, Import .md, Export .md, Delete
+- [ ] Style tab: per-file font overrides, heading/body color tokens
 - [ ] Image support (deferred - needs better UX design)
-- [ ] Style inspector panel (right sidebar)
-- [ ] Offline support: Service Worker + Cache API
+- [ ] Style inspector panel (on hold - low priority)
+- [ ] Offline support: Service Worker + Cache API (low priority / skip for v1)
 
 ---
 
@@ -275,6 +278,9 @@ Will be re-implemented in a future milestone with a cleaner approach - likely a 
 | Preview = A4 page cards | Discrete pages match the print output. CSS scale transform handles zoom-to-fit when pane is narrow |
 | Image support deferred | base64 inline embeds bloated IndexedDB. Will re-implement with a proper attachment model |
 | Resizable splitter = % widths | Simpler than flex-basis manipulation. MouseMove sets splitPct clamped 20-80% |
+| Theme = per-file | Resumes and journals need different visual treatments. themeId stored on each IndexedDB file record |
+| Dark PDF via --page-bg | Each theme has `--page-bg` token. Injected to `:root` + print CSS reads it. `print-color-adjust: exact` forces browser to render backgrounds in PDF |
+| Shiki singleton | Highlighter initialized once (WASM load). Processor cached after first build. Prevents re-init on every keystroke |
 | react-bits Aurora = copy-paste | Not an npm package. Copy component code directly into project |
 | Bun for everything | Faster installs, consistent with user tooling |
 

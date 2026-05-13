@@ -3,6 +3,16 @@ import { persist } from 'zustand/middleware'
 import { getAllFiles, saveFile, deleteFile } from '../lib/db'
 import { nanoid } from '../lib/nanoid'
 
+const DEFAULT_LAYOUT = {
+  fontSize: null,
+  lineHeight: null,
+  margins: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+  marginLinked: true,
+  paperSize: 'A4',
+  orientation: 'portrait',
+  watermark: '',
+}
+
 function makeFile(name = 'untitled.md') {
   return {
     id: nanoid(),
@@ -12,8 +22,11 @@ function makeFile(name = 'untitled.md') {
     updatedAt: Date.now(),
     order: 0,
     themeId: 'academic-serif',
+    layoutSettings: { ...DEFAULT_LAYOUT, margins: { ...DEFAULT_LAYOUT.margins } },
   }
 }
+
+export { DEFAULT_LAYOUT }
 
 let _bootstrapping = false
 
@@ -95,6 +108,26 @@ export const useFileStore = create(
         const file = files.find((f) => f.id === id)
         if (!file) return
         const updated = { ...file, themeId, updatedAt: Date.now() }
+        await saveFile(updated)
+        set((state) => ({
+          files: state.files.map((f) => (f.id === id ? updated : f)),
+        }))
+      },
+
+      setFileLayout: async (id, patch) => {
+        const { files } = get()
+        const file = files.find((f) => f.id === id)
+        if (!file) return
+        const existing = file.layoutSettings || DEFAULT_LAYOUT
+        const updated = {
+          ...file,
+          layoutSettings: {
+            ...existing,
+            ...patch,
+            margins: { ...existing.margins, ...(patch.margins || {}) },
+          },
+          updatedAt: Date.now(),
+        }
         await saveFile(updated)
         set((state) => ({
           files: state.files.map((f) => (f.id === id ? updated : f)),

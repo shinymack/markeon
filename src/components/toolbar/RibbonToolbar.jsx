@@ -1,25 +1,54 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, Download, Home } from 'lucide-react'
+import { Sun, Moon, Download, Home, Check, X } from 'lucide-react'
 import { useThemeStore } from '../../store/useThemeStore'
-import { useEditorStore } from '../../store/useEditorStore'
 import { useFileStore } from '../../store/useFileStore'
 import { buildPrintStyle, triggerPrint } from '../../lib/pdf'
 import ThemePicker from './ThemePicker'
+import LayoutPanel from './LayoutPanel'
+import ExportPanel from './ExportPanel'
 
 const TABS = ['File', 'Format', 'Style', 'Layout', 'Export']
 
-export default function RibbonToolbar() {
-  const [activeTab, setActiveTab] = useState('File')
+export default function RibbonToolbar({ activeTab, onTabChange }) {
+  const [editingName, setEditingName] = useState(false)
+  const [nameVal, setNameVal] = useState('')
+  const nameInputRef = useRef(null)
   const navigate = useNavigate()
   const { mode, toggleMode } = useThemeStore()
-  const { exportSettings } = useEditorStore()
-  const { files, activeFileId } = useFileStore()
+  const { files, activeFileId, renameFile } = useFileStore()
   const activeFile = files.find((f) => f.id === activeFileId)
 
   function handleExport() {
-    triggerPrint(buildPrintStyle(exportSettings), activeFile?.name)
+    const layout = activeFile?.layoutSettings || {}
+    triggerPrint(buildPrintStyle(layout), activeFile?.name)
   }
+
+  function startEditing() {
+    if (!activeFile) return
+    setNameVal(activeFile.name)
+    setEditingName(true)
+  }
+
+  function commitRename() {
+    const trimmed = nameVal.trim()
+    if (trimmed && activeFile && trimmed !== activeFile.name) {
+      const withExt = trimmed.endsWith('.md') ? trimmed : trimmed + '.md'
+      renameFile(activeFile.id, withExt)
+    }
+    setEditingName(false)
+  }
+
+  function cancelRename() {
+    setEditingName(false)
+  }
+
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus()
+      nameInputRef.current.select()
+    }
+  }, [editingName])
 
   return (
     <div className="flex items-center h-full px-3 gap-2">
@@ -43,7 +72,7 @@ export default function RibbonToolbar() {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => onTabChange?.(tab)}
               className="px-2.5 py-1 rounded text-[12.5px] font-medium cursor-pointer border-none transition-colors duration-100"
               style={{
                 fontFamily: 'var(--font-ui)',
@@ -57,14 +86,61 @@ export default function RibbonToolbar() {
         </nav>
       </div>
 
-      {/* Center */}
+      {/* Center - editable filename */}
       <div className="flex-1 flex justify-center">
-        <span
-          className="text-[12.5px] font-medium"
-          style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
-        >
-          {activeFile?.name || 'No file open'}
-        </span>
+        {editingName ? (
+          <div className="flex items-center gap-2">
+            <input
+              ref={nameInputRef}
+              value={nameVal}
+              onChange={(e) => setNameVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename()
+                if (e.key === 'Escape') cancelRename()
+              }}
+              onBlur={commitRename}
+              className="text-[12.5px] font-medium px-2 py-1 rounded outline-none"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-primary)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--accent)',
+                minWidth: 120,
+                maxWidth: 260,
+                width: `${Math.max(nameVal.length * 8, 120)}px`,
+              }}
+            />
+            <div className="flex items-center gap-1">
+              <button
+                onMouseDown={(e) => { e.preventDefault(); commitRename() }}
+                title="Confirm (Enter)"
+                className="flex items-center justify-center rounded border-none cursor-pointer transition-opacity duration-100 hover:opacity-80"
+                style={{ width: 22, height: 22, background: 'var(--accent)', color: '#0c0c0c', borderRadius: 5 }}
+              >
+                <Check size={12} />
+              </button>
+              <button
+                onMouseDown={(e) => { e.preventDefault(); cancelRename() }}
+                title="Cancel (Esc)"
+                className="flex items-center justify-center rounded cursor-pointer transition-opacity duration-100 hover:opacity-80"
+                style={{ width: 22, height: 22, background: 'var(--surface-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 5 }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={startEditing}
+            title="Click to rename"
+            className="text-[12.5px] font-medium px-2 py-0.5 rounded border-none bg-transparent cursor-text transition-colors duration-100"
+            style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-raised)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            {activeFile?.name || 'No file open'}
+          </button>
+        )}
       </div>
 
       {/* Right */}
