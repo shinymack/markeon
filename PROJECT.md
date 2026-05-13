@@ -248,7 +248,7 @@ Will be re-implemented in a future milestone with a cleaner approach - likely a 
 - [x] PDF export: multi-page, window.print(), natural-flow print CSS, filename in Save As
 - [x] Format tab: Bold, Italic, Strike, Inline Code, Link, H1/H2/H3, Blockquote, Lists, Code Block, Table, Divider
 - [x] File tab: New, Duplicate, Import .md, Export .md, Delete
-- [ ] Style tab: per-file font overrides, heading/body color tokens
+- [x] Style tab: per-file font overrides, heading/body color tokens
 - [ ] Image support (deferred - needs better UX design)
 - [ ] Style inspector panel (on hold - low priority)
 - [ ] Offline support: Service Worker + Cache API (low priority / skip for v1)

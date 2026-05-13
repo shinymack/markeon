@@ -83,7 +83,7 @@ export default function FormatPanel() {
   return (
     <div
       className="flex items-center gap-0.5 px-3 overflow-x-auto"
-      style={{ height: 46, fontFamily: 'var(--font-ui)' }}
+      style={{ height: 51, fontFamily: 'var(--font-ui)' }}
     >
       {GROUPS.map((group, gi) => (
         <>

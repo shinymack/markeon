@@ -137,7 +137,7 @@ export default function LayoutPanel() {
   return (
     <div
       className="flex items-center gap-1 px-4 overflow-x-auto"
-      style={{ height: 46, fontFamily: 'var(--font-ui)' }}
+      style={{ height: 51, fontFamily: 'var(--font-ui)' }}
     >
 
       {/* Font size */}

@@ -13,6 +13,15 @@ const DEFAULT_LAYOUT = {
   watermark: '',
 }
 
+export const DEFAULT_STYLE = {
+  bodyFont: null,
+  headingFont: null,
+  monoFont: null,
+  headingColor: null,
+  accentColor: null,
+  bodyColor: null,
+}
+
 function makeFile(name = 'untitled.md') {
   return {
     id: nanoid(),
@@ -23,6 +32,7 @@ function makeFile(name = 'untitled.md') {
     order: 0,
     themeId: 'academic-serif',
     layoutSettings: { ...DEFAULT_LAYOUT, margins: { ...DEFAULT_LAYOUT.margins } },
+    styleOverrides: { ...DEFAULT_STYLE },
   }
 }
 
@@ -126,6 +136,21 @@ export const useFileStore = create(
             ...patch,
             margins: { ...existing.margins, ...(patch.margins || {}) },
           },
+          updatedAt: Date.now(),
+        }
+        await saveFile(updated)
+        set((state) => ({
+          files: state.files.map((f) => (f.id === id ? updated : f)),
+        }))
+      },
+
+      setFileStyle: async (id, patch) => {
+        const { files } = get()
+        const file = files.find((f) => f.id === id)
+        if (!file) return
+        const updated = {
+          ...file,
+          styleOverrides: { ...(file.styleOverrides || DEFAULT_STYLE), ...patch },
           updatedAt: Date.now(),
         }
         await saveFile(updated)

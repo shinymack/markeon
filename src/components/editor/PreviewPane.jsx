@@ -29,7 +29,7 @@ function splitIntoPages(html) {
   return html.split(sep).map((s) => s.trim()).filter(Boolean)
 }
 
-function injectThemeStyle(theme, layoutSettings = {}) {
+function injectThemeStyle(theme, layoutSettings = {}, styleOverrides = {}) {
   let styleEl = document.getElementById('markeon-doc-theme')
   if (!styleEl) {
     styleEl = document.createElement('style')
@@ -44,6 +44,12 @@ function injectThemeStyle(theme, layoutSettings = {}) {
   const overrides = []
   if (layoutSettings.fontSize) overrides.push(`  --base-size: ${layoutSettings.fontSize};`)
   if (layoutSettings.lineHeight) overrides.push(`  --line-height: ${layoutSettings.lineHeight};`)
+  if (styleOverrides.bodyFont) overrides.push(`  --font-body: ${styleOverrides.bodyFont};`)
+  if (styleOverrides.headingFont) overrides.push(`  --font-heading: ${styleOverrides.headingFont};`)
+  if (styleOverrides.monoFont) overrides.push(`  --font-mono: ${styleOverrides.monoFont};`)
+  if (styleOverrides.headingColor) overrides.push(`  --color-heading: ${styleOverrides.headingColor};`)
+  if (styleOverrides.accentColor) overrides.push(`  --color-accent: ${styleOverrides.accentColor};`)
+  if (styleOverrides.bodyColor) overrides.push(`  --color-text: ${styleOverrides.bodyColor};`)
 
   styleEl.textContent = `:root { --page-bg: ${pageBg}; }\n.markeon-document {\n${docVars}\n${overrides.join('\n')}\n}`
 }
@@ -56,6 +62,7 @@ export default function PreviewPane() {
   const activeTheme = getThemeById(themeId) || BUILT_IN_THEMES[0]
   const pageBg = activeTheme.tokens['--page-bg'] || '#ffffff'
   const layout = { ...DEFAULT_LAYOUT, ...activeFile?.layoutSettings, margins: { ...DEFAULT_LAYOUT.margins, ...activeFile?.layoutSettings?.margins } }
+  const styleOverrides = { ...activeFile?.styleOverrides }
 
   // Dynamic paper dimensions
   const dims = getPaperPx(layout.paperSize, layout.orientation)
@@ -70,8 +77,13 @@ export default function PreviewPane() {
   const [scale, setScale] = useState(1)
 
   useEffect(() => {
-    injectThemeStyle(activeTheme, layout)
-  }, [themeId, activeFileId, layout.fontSize, layout.lineHeight])
+    injectThemeStyle(activeTheme, layout, styleOverrides)
+  }, [
+    themeId, activeFileId,
+    layout.fontSize, layout.lineHeight,
+    styleOverrides.bodyFont, styleOverrides.headingFont, styleOverrides.monoFont,
+    styleOverrides.headingColor, styleOverrides.accentColor, styleOverrides.bodyColor,
+  ])
 
   useEffect(() => {
     if (!content) { setPages([]); return }
