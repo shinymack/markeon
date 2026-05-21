@@ -245,7 +245,7 @@ export default function PreviewPane({ onHeadingsChange, previewScrollRef }) {
             pages.map((pageHtml, i) => (
               <div
                 key={i}
-                className="relative flex-shrink-0"
+                className="relative flex-shrink-0 overflow-x-hidden"
                 style={{
                   width: `${dims.w}px`,
                   minHeight: `${dims.h}px`,

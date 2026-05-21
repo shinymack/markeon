@@ -9,6 +9,10 @@
   font-size: var(--base-size, 12pt);
   line-height: var(--line-height, 1.8);
   color: var(--color-text, #1a1a1a);
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .markeon-document h1,
@@ -121,6 +125,10 @@
 .markeon-document li { margin-bottom: 0.3em; }
 
 .markeon-document hr {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: none;
   border-top: 1px solid var(--color-border, #d0cdc8);
   margin: 2em 0;

@@ -21,6 +21,34 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
+const THEMATIC_LINE = /^[-=*_]{3,}$/
+
+function paragraphPlainText(node) {
+  if (!node.children?.length) return ''
+  return node.children
+    .filter((c) => c.type === 'text')
+    .map((c) => c.value)
+    .join('')
+    .trim()
+}
+
+/** Lines of only =====, ---, etc. become <hr> instead of overflowing <p> text. */
+function rehypeThematicLineParagraphs() {
+  return function transformer(tree) {
+    visit(tree, 'element', (node, index, parent) => {
+      if (node.tagName !== 'p' || parent == null || index == null) return
+      const text = paragraphPlainText(node)
+      if (!THEMATIC_LINE.test(text)) return
+      parent.children[index] = {
+        type: 'element',
+        tagName: 'hr',
+        properties: {},
+        children: [],
+      }
+    })
+  }
+}
+
 function rehypeMarkeonImages() {
   return async function transformer(tree) {
     const tasks = []
@@ -51,6 +79,7 @@ async function getProcessor() {
     .use(rehypeRaw)
     .use(rehypeKatex)
     .use(rehypeSlug)
+    .use(rehypeThematicLineParagraphs)
     .use(rehypeMarkeonImages)
     .use(rehypeShikiFromHighlighter, highlighter, {
       theme: 'one-dark-pro',
@@ -60,9 +89,47 @@ async function getProcessor() {
   return _processor
 }
 
+const THEMATIC_LINE_RE = /^[-=*_]{3,}$/
+
+/**
+ * Isolate divider lines so long ===== rows become <hr>, not overflow or merged setext.
+ */
+export function normalizeThematicLines(content) {
+  const lines = content.split('\n')
+  const out = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (!THEMATIC_LINE_RE.test(trimmed)) {
+      out.push(lines[i])
+      continue
+    }
+
+    const prev = lines[i - 1]?.trim() ?? ''
+    const next = lines[i + 1]?.trim() ?? ''
+    const isSetextUnderline =
+      prev &&
+      !next &&
+      (trimmed.length < 10) &&
+      (/^=+$/.test(trimmed) || /^-+$/.test(trimmed))
+
+    if (isSetextUnderline) {
+      out.push(lines[i])
+      continue
+    }
+
+    if (out.length && out[out.length - 1] !== '') out.push('')
+    out.push('---')
+    if (next) out.push('')
+  }
+
+  return out.join('\n')
+}
+
 export async function renderMarkdown(content) {
   const processor = await getProcessor()
-  const result = await processor.process(content)
+  const normalized = normalizeThematicLines(content)
+  const result = await processor.process(normalized)
   return String(result)
 }
 
