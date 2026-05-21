@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, Download, Home, Check, X } from 'lucide-react'
+import { Sun, Moon, Download, Home, Check, X, BookOpen } from 'lucide-react'
 import { useThemeStore } from '../../store/useThemeStore'
 import { useFileStore } from '../../store/useFileStore'
+import { useEditorStore } from '../../store/useEditorStore'
 import { buildPrintStyle, triggerPrint } from '../../lib/pdf'
 import ThemePicker from './ThemePicker'
 import LayoutPanel from './LayoutPanel'
@@ -16,6 +17,7 @@ export default function RibbonToolbar({ activeTab, onTabChange }) {
   const nameInputRef = useRef(null)
   const navigate = useNavigate()
   const { mode, toggleMode } = useThemeStore()
+  const { readingMode, toggleReadingMode } = useEditorStore()
   const { files, activeFileId, renameFile } = useFileStore()
   const activeFile = files.find((f) => f.id === activeFileId)
 
@@ -146,6 +148,19 @@ export default function RibbonToolbar({ activeTab, onTabChange }) {
       {/* Right */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <ThemePicker />
+
+        <button
+          onClick={toggleReadingMode}
+          title={readingMode ? 'Exit reading mode' : 'Reading mode'}
+          className="flex items-center justify-center w-[30px] h-[30px] rounded cursor-pointer border transition-colors duration-100"
+          style={{
+            background: readingMode ? 'var(--accent-dim)' : 'transparent',
+            borderColor: readingMode ? 'var(--accent)' : 'var(--border)',
+            color: readingMode ? 'var(--accent)' : 'var(--text-muted)',
+          }}
+        >
+          <BookOpen size={13} />
+        </button>
 
         <div className="w-px h-4" style={{ background: 'var(--border)' }} />
 

@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, useLayoutEffect } from 'react'
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react'
 import { useFileStore, DEFAULT_LAYOUT } from '../../store/useFileStore'
-import { renderMarkdown, processPageBreaks } from '../../lib/markdown'
+import { useEditorStore } from '../../store/useEditorStore'
+import { renderMarkdown, processPageBreaks, extractHeadingsFromPreview } from '../../lib/markdown'
 import { getThemeById, BUILT_IN_THEMES } from '../../lib/themes'
+import ReadingZoomBar from './ReadingZoomBar'
 
 // Paper dimensions in mm
 const PAPER_MM = {
@@ -54,7 +56,7 @@ function injectThemeStyle(theme, layoutSettings = {}, styleOverrides = {}) {
   styleEl.textContent = `:root { --page-bg: ${pageBg}; }\n.markeon-document {\n${docVars}\n${overrides.join('\n')}\n}`
 }
 
-export default function PreviewPane() {
+export default function PreviewPane({ onHeadingsChange, previewScrollRef }) {
   const { files, activeFileId } = useFileStore()
   const activeFile = files.find((f) => f.id === activeFileId)
   const content = activeFile?.content ?? ''
@@ -71,10 +73,21 @@ export default function PreviewPane() {
   const padBottom = mmToPx(layout.margins.bottom)
   const padLeft   = mmToPx(layout.margins.left)
 
+  const readingMode = useEditorStore((s) => s.readingMode)
+  const readingZoom = useEditorStore((s) => s.readingZoom)
+  const setReadingZoom = useEditorStore((s) => s.setReadingZoom)
+  const resetReadingZoom = useEditorStore((s) => s.resetReadingZoom)
+
   const [pages, setPages] = useState([''])
   const wrapperRef = useRef(null)
   const allPagesRef = useRef(null)
-  const [scale, setScale] = useState(1)
+  const [fitScale, setFitScale] = useState(1)
+  const readingZoomRef = useRef(readingZoom)
+  const pinchRef = useRef({ dist: 0, zoom: 1 })
+
+  readingZoomRef.current = readingZoom
+
+  const displayScale = readingMode ? fitScale * readingZoom : fitScale
 
   useEffect(() => {
     injectThemeStyle(activeTheme, layout, styleOverrides)
@@ -105,22 +118,89 @@ export default function PreviewPane() {
         el.parentElement?.replaceWith(div)
       })
       mermaid.run({ nodes: allPagesRef.current.querySelectorAll('.mermaid') })
+    }).finally(() => {
+      if (onHeadingsChange && allPagesRef.current) {
+        onHeadingsChange(extractHeadingsFromPreview(allPagesRef.current))
+      }
     })
-  }, [pages])
+  }, [pages, onHeadingsChange])
+
+  useEffect(() => {
+    if (!onHeadingsChange || !allPagesRef.current) return
+    if (pages.length === 0) {
+      onHeadingsChange([])
+      return
+    }
+    const mermaidPending = allPagesRef.current.querySelectorAll('code.language-mermaid').length > 0
+    if (!mermaidPending) {
+      onHeadingsChange(extractHeadingsFromPreview(allPagesRef.current))
+    }
+  }, [pages, onHeadingsChange])
 
   useLayoutEffect(() => {
     if (!wrapperRef.current) return
     const ro = new ResizeObserver(([entry]) => {
       const availableW = entry.contentRect.width - 32
       if (availableW < dims.w) {
-        setScale(Math.max(0.35, availableW / dims.w))
+        setFitScale(Math.max(0.35, availableW / dims.w))
       } else {
-        setScale(1)
+        setFitScale(1)
       }
     })
     ro.observe(wrapperRef.current)
     return () => ro.disconnect()
   }, [dims.w])
+
+  const applyPinchZoom = useCallback((ratio) => {
+    setReadingZoom(pinchRef.current.zoom * ratio)
+  }, [setReadingZoom])
+
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el || !readingMode) return
+
+    function touchDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      return Math.hypot(dx, dy)
+    }
+
+    function onWheel(e) {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.08 : 0.08
+      setReadingZoom(readingZoomRef.current + delta)
+    }
+
+    function onTouchStart(e) {
+      if (e.touches.length !== 2) return
+      pinchRef.current = { dist: touchDistance(e.touches), zoom: readingZoomRef.current }
+    }
+
+    function onTouchMove(e) {
+      if (e.touches.length !== 2 || pinchRef.current.dist <= 0) return
+      e.preventDefault()
+      applyPinchZoom(touchDistance(e.touches) / pinchRef.current.dist)
+    }
+
+    function onTouchEnd(e) {
+      if (e.touches.length < 2) pinchRef.current.dist = 0
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    el.addEventListener('touchcancel', onTouchEnd)
+
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [readingMode, setReadingZoom, applyPinchZoom])
 
   return (
     <div
@@ -129,8 +209,12 @@ export default function PreviewPane() {
       style={{ background: 'var(--bg)' }}
     >
       <div
-        ref={wrapperRef}
+        ref={(el) => {
+          wrapperRef.current = el
+          if (previewScrollRef) previewScrollRef.current = el
+        }}
         className="flex-1 overflow-y-auto py-8 flex flex-col items-center"
+        style={{ touchAction: readingMode ? 'pan-y' : 'auto' }}
       >
         <div
           id="markeon-all-pages"
@@ -138,9 +222,9 @@ export default function PreviewPane() {
           className="flex flex-col gap-6"
           style={{
             width: `${dims.w}px`,
-            transform: `scale(${scale})`,
+            transform: `scale(${displayScale})`,
             transformOrigin: 'top center',
-            marginBottom: scale < 1 ? `${(pages.length * (dims.h + 24)) * (scale - 1)}px` : 0,
+            marginBottom: displayScale !== 1 ? `${(pages.length * (dims.h + 24)) * (displayScale - 1)}px` : 0,
           }}
         >
           {pages.length === 0 ? (
@@ -182,6 +266,14 @@ export default function PreviewPane() {
           )}
         </div>
       </div>
+
+      {readingMode && (
+        <ReadingZoomBar
+          zoom={readingZoom}
+          onChange={setReadingZoom}
+          onReset={resetReadingZoom}
+        />
+      )}
     </div>
   )
 }

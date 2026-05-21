@@ -115,3 +115,24 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Reading mode — hide editor chrome via CSS so CodeMirror stays mounted */
+[data-reading-mode='true'] #file-tree,
+[data-reading-mode='true'] #editor-pane,
+[data-reading-mode='true'] #editor-splitter,
+[data-reading-mode='true'] #inspector {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+[data-reading-mode='true'] #preview-pane {
+  flex: 1;
+  width: 100%;
+}

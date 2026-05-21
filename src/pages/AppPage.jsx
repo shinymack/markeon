@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useFileStore } from '../store/useFileStore'
+import { useEditorStore } from '../store/useEditorStore'
 import RibbonToolbar from '../components/toolbar/RibbonToolbar'
 import LayoutPanel from '../components/toolbar/LayoutPanel'
 import ExportPanel from '../components/toolbar/ExportPanel'
@@ -8,6 +9,7 @@ import FormatPanel from '../components/toolbar/FormatPanel'
 import FilePanel from '../components/toolbar/FilePanel'
 import StylePanel from '../components/toolbar/StylePanel'
 import FileTree from '../components/sidebar/FileTree'
+import DocOutline from '../components/sidebar/DocOutline'
 import EditorPane from '../components/editor/EditorPane'
 import PreviewPane from '../components/editor/PreviewPane'
 
@@ -25,24 +27,28 @@ const TAB_PANELS = {
 
 export default function AppPage() {
     const loadFiles = useFileStore((s) => s.loadFiles)
+    const readingMode = useEditorStore((s) => s.readingMode)
     useEffect(() => { loadFiles() }, [loadFiles])
 
     const [splitPct, setSplitPct] = useState(50)
     const [sidebarOpen, setSidebarOpen] = useState(true)
     const [activeTab, setActiveTab] = useState('Layout')
+    const [headings, setHeadings] = useState([])
     const dragging = useRef(false)
     const workAreaRef = useRef(null)
+    const previewScrollRef = useRef(null)
 
     const onMouseDown = useCallback((e) => {
+        if (readingMode) return
         e.preventDefault()
         dragging.current = true
         document.body.style.cursor = 'col-resize'
         document.body.style.userSelect = 'none'
-    }, [])
+    }, [readingMode])
 
     useEffect(() => {
         function onMouseMove(e) {
-            if (!dragging.current || !workAreaRef.current) return
+            if (!dragging.current || !workAreaRef.current || readingMode) return
             const rect = workAreaRef.current.getBoundingClientRect()
             const pct = ((e.clientX - rect.left) / rect.width) * 100
             setSplitPct(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct)))
@@ -59,12 +65,34 @@ export default function AppPage() {
             window.removeEventListener('mousemove', onMouseMove)
             window.removeEventListener('mouseup', onMouseUp)
         }
+    }, [readingMode])
+
+    const scrollToHeading = useCallback((id) => {
+        const el = document.getElementById(id)
+        if (!el) return
+        const scroller = previewScrollRef.current
+        if (scroller) {
+            const elTop = el.getBoundingClientRect().top
+            const scTop = scroller.getBoundingClientRect().top
+            scroller.scrollTo({ top: scroller.scrollTop + (elTop - scTop) - 24, behavior: 'smooth' })
+        } else {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
     }, [])
 
     const ActivePanel = TAB_PANELS[activeTab] || null
+    const sidebarWidth = sidebarOpen ? 'var(--sidebar-width)' : '0px'
+
+    useEffect(() => {
+        if (readingMode) setSidebarOpen(true)
+    }, [readingMode])
 
     return (
-        <div className="flex flex-col h-dvh overflow-hidden" style={{ background: 'var(--bg)' }}>
+        <div
+            className="flex flex-col h-dvh overflow-hidden"
+            style={{ background: 'var(--bg)' }}
+            data-reading-mode={readingMode ? 'true' : 'false'}
+        >
 
             {/* Toolbar */}
             <header
@@ -81,8 +109,8 @@ export default function AppPage() {
                     <RibbonToolbar onTabChange={setActiveTab} activeTab={activeTab} />
                 </div>
 
-                {/* Tab panel strip */}
-                {ActivePanel && (
+                {/* Tab panel strip — hidden in reading mode */}
+                {ActivePanel && !readingMode && (
                     <div
                         className="border-t overflow-x-auto"
                         style={{
@@ -103,7 +131,7 @@ export default function AppPage() {
                     id="sidebar"
                     className="flex-shrink-0 flex flex-col overflow-hidden border-r"
                     style={{
-                        width: sidebarOpen ? 'var(--sidebar-width)' : '0px',
+                        width: sidebarWidth,
                         minWidth: 0,
                         transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
                         background: 'var(--glass-bg)',
@@ -113,13 +141,23 @@ export default function AppPage() {
                         overflow: 'hidden',
                     }}
                 >
-                    <FileTree />
+                    {!readingMode && <FileTree />}
+                    <DocOutline
+                        headings={headings}
+                        onSelect={scrollToHeading}
+                        variant={readingMode ? 'panel' : 'stacked'}
+                    />
                 </aside>
 
-                {/* Sidebar toggle button */}
+                {/* Sidebar toggle — outline panel in reading mode, full sidebar otherwise */}
                 <button
+                    id="sidebar-toggle"
                     onClick={() => setSidebarOpen((o) => !o)}
-                    title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                    title={
+                        readingMode
+                            ? (sidebarOpen ? 'Hide outline' : 'Show outline')
+                            : (sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar')
+                    }
                     className="flex-shrink-0 flex items-center justify-center cursor-pointer border-none border-r z-10 transition-colors duration-150"
                     style={{
                         width: 18,
@@ -140,23 +178,26 @@ export default function AppPage() {
                 {/* Work area */}
                 <div ref={workAreaRef} className="flex flex-1 overflow-hidden min-w-0 relative">
                     <div
+                        id="editor-pane"
                         className="overflow-hidden"
-                        style={{ width: `${splitPct}%`, flexShrink: 0, borderRight: '1px solid var(--border-subtle)' }}
+                        style={{ width: readingMode ? 0 : `${splitPct}%`, flexShrink: 0, borderRight: readingMode ? 'none' : '1px solid var(--border-subtle)' }}
                     >
                         <EditorPane />
                     </div>
 
                     {/* Splitter */}
                     <div
+                        id="editor-splitter"
                         className="flex-shrink-0 flex items-center justify-center cursor-col-resize z-10 select-none group"
                         style={{
-                            width: '10px',
+                            width: readingMode ? 0 : '10px',
                             position: 'relative',
                             background: 'transparent',
                             transition: 'background 150ms',
+                            overflow: 'hidden',
                         }}
                         onMouseDown={onMouseDown}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-dim)' }}
+                        onMouseEnter={(e) => { if (!readingMode) e.currentTarget.style.background = 'var(--accent-dim)' }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                     >
                         <div
@@ -190,7 +231,10 @@ export default function AppPage() {
                     </div>
 
                     <div className="flex-1 min-w-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
-                        <PreviewPane />
+                        <PreviewPane
+                            onHeadingsChange={setHeadings}
+                            previewScrollRef={previewScrollRef}
+                        />
                     </div>
                 </div>
 

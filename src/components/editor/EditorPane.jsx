@@ -9,6 +9,7 @@ import { useFileStore } from '../../store/useFileStore'
 import { useEditorStore } from '../../store/useEditorStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { editorViewRef } from '../../lib/editorRef'
+import { handleImagePaste } from '../../lib/images'
 
 const DEBOUNCE_MS = 400
 
@@ -16,11 +17,14 @@ export default function EditorPane() {
   const editorRef = useRef(null)
   const viewRef = useRef(null)
   const saveTimer = useRef(null)
+  const activeFileIdRef = useRef(null)
 
   const { activeFileId, files, updateContent } = useFileStore()
   const { fontSize } = useEditorStore()
   const { mode } = useThemeStore()
   const activeFile = files.find((f) => f.id === activeFileId)
+
+  activeFileIdRef.current = activeFileId
 
   const debouncedSave = useCallback((id, content) => {
     clearTimeout(saveTimer.current)
@@ -51,9 +55,29 @@ export default function EditorPane() {
       markdown({ base: markdownLanguage }),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.lineWrapping,
+      EditorView.domEventHandlers({
+        paste: (event, view) => {
+          const items = event.clipboardData?.items
+          if (!items) return false
+          for (const item of items) {
+            if (!item.type.startsWith('image/')) continue
+            const file = item.getAsFile()
+            if (!file) continue
+            event.preventDefault()
+            const fileId = activeFileIdRef.current
+            handleImagePaste(view, file, fileId).then((handled) => {
+              if (handled && fileId) {
+                debouncedSave(fileId, view.state.doc.toString())
+              }
+            })
+            return true
+          }
+          return false
+        },
+      }),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged && activeFileId) {
-          debouncedSave(activeFileId, update.state.doc.toString())
+        if (update.docChanged && activeFileIdRef.current) {
+          debouncedSave(activeFileIdRef.current, update.state.doc.toString())
         }
       }),
       mode === 'dark' ? oneDark : lightTheme,
@@ -65,7 +89,7 @@ export default function EditorPane() {
     editorViewRef.current = view
 
     return () => { view.destroy(); viewRef.current = null; editorViewRef.current = null }
-  }, [activeFileId, mode, !!activeFile])
+  }, [activeFileId, mode, !!activeFile, fontSize, debouncedSave])
 
   return (
     <div

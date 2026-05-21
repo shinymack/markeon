@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getAllFiles, saveFile, deleteFile } from '../lib/db'
+import { getAllFiles, saveFile, deleteFile, deleteAttachmentsByIds } from '../lib/db'
+import { extractMarkeonImageIds } from '../lib/images'
 import { nanoid } from '../lib/nanoid'
 
 const DEFAULT_LAYOUT = {
@@ -106,6 +107,11 @@ export const useFileStore = create(
 
       deleteFile: async (id) => {
         const { files, activeFileId } = get()
+        const file = files.find((f) => f.id === id)
+        if (file?.content) {
+          const attachmentIds = extractMarkeonImageIds(file.content)
+          if (attachmentIds.length) await deleteAttachmentsByIds(attachmentIds)
+        }
         await deleteFile(id)
         const remaining = files.filter((f) => f.id !== id)
         const nextActive =

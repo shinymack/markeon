@@ -19,7 +19,7 @@ export default function FileTree() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div id="file-tree" className="flex flex-col flex-shrink-0 overflow-hidden">
 
       {/* Header */}
       <div

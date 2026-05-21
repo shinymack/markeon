@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'markeon'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let db = null
 
@@ -9,7 +9,7 @@ async function getDB() {
   if (db) return db
 
   db = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(database) {
+    upgrade(database, oldVersion) {
       if (!database.objectStoreNames.contains('files')) {
         const fileStore = database.createObjectStore('files', { keyPath: 'id' })
         fileStore.createIndex('order', 'order')
@@ -25,6 +25,11 @@ async function getDB() {
 
       if (!database.objectStoreNames.contains('meta')) {
         database.createObjectStore('meta', { keyPath: 'key' })
+      }
+
+      if (oldVersion < 2 && !database.objectStoreNames.contains('attachments')) {
+        const store = database.createObjectStore('attachments', { keyPath: 'id' })
+        store.createIndex('fileId', 'fileId')
       }
     },
   })
@@ -57,6 +62,29 @@ export async function deleteFile(id) {
 export async function getFileCount() {
   const database = await getDB()
   return database.count('files')
+}
+
+// Attachments
+export async function saveAttachment(attachment) {
+  const database = await getDB()
+  await database.put('attachments', attachment)
+}
+
+export async function getAttachment(id) {
+  const database = await getDB()
+  return database.get('attachments', id)
+}
+
+export async function deleteAttachment(id) {
+  const database = await getDB()
+  await database.delete('attachments', id)
+}
+
+export async function deleteAttachmentsByIds(ids) {
+  const database = await getDB()
+  const tx = database.transaction('attachments', 'readwrite')
+  await Promise.all([...ids].map((id) => tx.store.delete(id)))
+  await tx.done
 }
 
 // Themes
