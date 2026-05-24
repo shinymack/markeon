@@ -38,7 +38,7 @@ function injectThemeStyle(theme, layoutSettings = {}, styleOverrides = {}) {
     styleEl.id = 'markeon-doc-theme'
     document.head.appendChild(styleEl)
   }
-  const pageBg = theme.tokens['--page-bg'] || '#ffffff'
+  const pageBg = styleOverrides.pageBg || theme.tokens['--page-bg'] || '#ffffff'
   const docVars = Object.entries(theme.tokens)
     .map(([k, v]) => `  ${k}: ${v};`)
     .join('\n')
@@ -52,6 +52,7 @@ function injectThemeStyle(theme, layoutSettings = {}, styleOverrides = {}) {
   if (styleOverrides.headingColor) overrides.push(`  --color-heading: ${styleOverrides.headingColor};`)
   if (styleOverrides.accentColor) overrides.push(`  --color-accent: ${styleOverrides.accentColor};`)
   if (styleOverrides.bodyColor) overrides.push(`  --color-text: ${styleOverrides.bodyColor};`)
+  if (styleOverrides.pageBg) overrides.push(`  --page-bg: ${styleOverrides.pageBg};`)
 
   styleEl.textContent = `:root { --page-bg: ${pageBg}; }\n.markeon-document {\n${docVars}\n${overrides.join('\n')}\n}`
 }
@@ -62,9 +63,9 @@ export default function PreviewPane({ onHeadingsChange, previewScrollRef }) {
   const content = activeFile?.content ?? ''
   const themeId = activeFile?.themeId || 'academic-serif'
   const activeTheme = getThemeById(themeId) || BUILT_IN_THEMES[0]
-  const pageBg = activeTheme.tokens['--page-bg'] || '#ffffff'
   const layout = { ...DEFAULT_LAYOUT, ...activeFile?.layoutSettings, margins: { ...DEFAULT_LAYOUT.margins, ...activeFile?.layoutSettings?.margins } }
   const styleOverrides = { ...activeFile?.styleOverrides }
+  const pageBg = styleOverrides.pageBg || activeTheme.tokens['--page-bg'] || '#ffffff'
 
   // Dynamic paper dimensions
   const dims = getPaperPx(layout.paperSize, layout.orientation)
@@ -95,7 +96,7 @@ export default function PreviewPane({ onHeadingsChange, previewScrollRef }) {
     themeId, activeFileId,
     layout.fontSize, layout.lineHeight,
     styleOverrides.bodyFont, styleOverrides.headingFont, styleOverrides.monoFont,
-    styleOverrides.headingColor, styleOverrides.accentColor, styleOverrides.bodyColor,
+    styleOverrides.headingColor, styleOverrides.accentColor, styleOverrides.bodyColor, styleOverrides.pageBg,
   ])
 
   useEffect(() => {

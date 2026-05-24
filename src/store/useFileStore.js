@@ -21,6 +21,7 @@ export const DEFAULT_STYLE = {
   headingColor: null,
   accentColor: null,
   bodyColor: null,
+  pageBg: null,
 }
 
 function makeFile(name = 'untitled.md') {

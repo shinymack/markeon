@@ -249,6 +249,16 @@ export default function StylePanel() {
         onChange={(v) => patch({ bodyColor: v })}
         onReset={() => patch({ bodyColor: null })}
       />
+
+      <Sep />
+
+      <ColorField
+        label="Page bg"
+        value={overrides.pageBg}
+        themeDefault={tok['--page-bg']}
+        onChange={(v) => patch({ pageBg: v })}
+        onReset={() => patch({ pageBg: null })}
+      />
     </div>
   )
 }
