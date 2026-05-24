@@ -195,3 +195,25 @@ Three insertion methods, all convert to base64 data URIs embedded directly in th
 **Commit:** `feat(toolbar): Format tab + File tab - markdown formatting commands and file operations`
 
 ---
+
+## [2026-05-21] features — reading mode, outline, images, preview fixes
+
+**What changed:**
+
+- **`NEXT.md`** (new): Feature prompt for reading mode, TOC, and image paste. **`vercel.json`** (new): SPA rewrite for deploy. **`.gitignore`**: `.vercel`, `graphify-out/`.
+- **Reading mode**: `readingMode` + `toggleReadingMode` in `useEditorStore` (persisted). Book icon in `RibbonToolbar`. `data-reading-mode` on app shell; CSS hides editor, splitter, inspector, and file tree without unmounting CodeMirror.
+- **Reading mode outline**: Sidebar shows `DocOutline` only (no `FileTree`). Same `DocOutline` component with `variant="panel"` for full-height layout. Outline auto-opens when entering reading mode; tab strip hidden in reading mode.
+- **Reading zoom**: Separate `readingZoom` (50%–250%, persisted). `ReadingZoomBar` with slider and ±/reset. Pinch (two-finger) and Ctrl+scroll on preview. Effective scale = fit-to-width × reading zoom.
+- **Table of contents**: `rehype-slug` in unified pipeline. **`DocOutline.jsx`** (new): indented heading list in sidebar. `PreviewPane` scrapes headings after render; click scrolls preview smoothly.
+- **Image paste**: IndexedDB v2 `attachments` store in `db.js`. Ctrl+V in editor saves blob, inserts `![image](markeon://img/<id>)`. Rehype plugin resolves to data URIs in preview/PDF. Attachments deleted with parent file (`extractMarkeonImageIds` in `useFileStore`). **`src/lib/images.js`** (new).
+- **Divider overflow fix**: Long `=====` / `-----` lines no longer bleed past page cards. `normalizeThematicLines()` preprocess + `rehypeThematicLineParagraphs()` convert decorative rules to `<hr>`. Setext headings (`Title` + short `=====` underline) preserved. `.markeon-document` overflow/word-break; page cards `overflow-x-hidden`.
+
+**Key decisions:**
+
+- Image storage uses attachment records + `markeon://` URLs, not inline base64 (replaces the May 2026 removal documented in PROJECT.md).
+- Reading mode keeps outline for navigation; file tree hidden via conditional render + CSS.
+- Decorative divider lines ≥10 chars (or not setext underlines) normalize to `---` before parse.
+
+**Commit suggestion:** `feat: reading mode with outline zoom, document TOC, image attachments, and Vercel config`
+
+---

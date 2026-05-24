@@ -226,9 +226,9 @@ Batch export and merged project PDF are v2.
 
 ## Image Support
 
-**Deferred.** Removed from v1. The base64-embed approach (paste/drag/file-picker inserting `data:image/...` URIs into the markdown) bloated IndexedDB records and was not ergonomic.
+**Implemented (2026-05-21).** Paste in editor (Ctrl+V) saves images to IndexedDB `attachments` store; markdown uses `markeon://img/<uuid>` URLs. Rehype resolves to data URIs in preview and PDF export. Attachments are deleted when the parent file is deleted.
 
-Will be re-implemented in a future milestone with a cleaner approach - likely a dedicated attachment panel or modal rather than inline cursor insertion.
+The earlier base64-inline approach was removed in May 2026 because it bloated file records. See `PROGRESS.md` for build log.
 
 ---
 
@@ -249,7 +249,9 @@ Will be re-implemented in a future milestone with a cleaner approach - likely a 
 - [x] Format tab: Bold, Italic, Strike, Inline Code, Link, H1/H2/H3, Blockquote, Lists, Code Block, Table, Divider
 - [x] File tab: New, Duplicate, Import .md, Export .md, Delete
 - [x] Style tab: per-file font overrides, heading/body color tokens
-- [ ] Image support (deferred - needs better UX design)
+- [x] Image support: paste to attachments store, `markeon://img/` URLs, rehype resolve
+- [x] Reading mode: preview-only chrome, outline sidebar, pinch/slider zoom
+- [x] Document outline: `rehype-slug`, sidebar TOC, smooth scroll to heading
 - [ ] Style inspector panel (on hold - low priority)
 - [ ] Offline support: Service Worker + Cache API (low priority / skip for v1)
 
@@ -276,7 +278,9 @@ Will be re-implemented in a future milestone with a cleaner approach - likely a 
 | window.print() for PDF | No canvas artifacts, pixel-accurate, no extra dependencies |
 | Print: clone to body root | `position:fixed` on `#preview-content` broke multi-page export. Cloning to a top-level div lets browser paginate naturally |
 | Preview = A4 page cards | Discrete pages match the print output. CSS scale transform handles zoom-to-fit when pane is narrow |
-| Image support deferred | base64 inline embeds bloated IndexedDB. Will re-implement with a proper attachment model |
+| Image attachments | `markeon://img/` refs + IndexedDB blobs; rehype inlines for preview/PDF; no base64 in file content |
+| Reading mode | CSS hides editor chrome; CodeMirror stays mounted; outline-only sidebar |
+| Document TOC | `rehype-slug` + `DocOutline`; headings scraped from preview DOM |
 | Resizable splitter = % widths | Simpler than flex-basis manipulation. MouseMove sets splitPct clamped 20-80% |
 | Theme = per-file | Resumes and journals need different visual treatments. themeId stored on each IndexedDB file record |
 | Dark PDF via --page-bg | Each theme has `--page-bg` token. Injected to `:root` + print CSS reads it. `print-color-adjust: exact` forces browser to render backgrounds in PDF |
