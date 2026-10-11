@@ -1,8 +1,11 @@
+import { Fragment } from 'react'
 import {
   Bold, Italic, Strikethrough, Code, Link, Heading1, Heading2, Heading3,
-  Quote, List, ListOrdered, Minus, Table2, Braces,
+  Quote, List, ListOrdered, Minus, Table2, Braces, Workflow, Image as ImageIcon,
 } from 'lucide-react'
 import * as fmt from '../../lib/formatCommands'
+import { useFileStore } from '../../store/useFileStore'
+import { useEditorStore } from '../../store/useEditorStore'
 
 const GROUPS = [
   {
@@ -31,17 +34,22 @@ const GROUPS = [
       { icon: ListOrdered,  label: 'Ordered List', shortcut: '', action: fmt.orderedList },
       { icon: Braces,       label: 'Code Block',   shortcut: '', action: fmt.codeBlock },
       { icon: Table2,       label: 'Table',        shortcut: '', action: fmt.table },
+      { icon: Workflow,     label: 'Diagram',      shortcut: '', action: fmt.mermaidDiagram },
+      { icon: ImageIcon,    label: 'Image',        shortcut: '', action: fmt.image },
       { icon: Minus,        label: 'Divider',      shortcut: '', action: fmt.horizontalRule },
+      { icon: Minus,        label: 'Page break',   shortcut: '', action: fmt.pageBreak },
     ],
   },
 ]
 
-function FmtButton({ icon: Icon, label, shortcut, action }) {
+function FmtButton({ icon: Icon, label, shortcut, action, disabled }) {
   return (
     <button
+      type="button"
       onClick={action}
-      title={shortcut ? `${label} (${shortcut})` : label}
-      className="flex items-center gap-1.5 px-2.5 rounded cursor-pointer border-none transition-colors duration-100 flex-shrink-0"
+      disabled={disabled}
+      aria-keyshortcuts={shortcut ? shortcut.replace('Ctrl', 'Control') : undefined}
+      className="flex items-center gap-1.5 px-2.5 rounded cursor-pointer border-none transition-colors duration-100 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         height: 30,
         fontSize: 12,
@@ -65,7 +73,7 @@ function FmtButton({ icon: Icon, label, shortcut, action }) {
 }
 
 function Sep() {
-  return <div className="self-stretch mx-1" style={{ width: 1, background: 'var(--border)' }} />
+  return <div className="h-5 self-center mx-1.5 flex-shrink-0" style={{ width: 1, background: 'var(--border)' }} />
 }
 
 function GroupLabel({ children }) {
@@ -80,19 +88,21 @@ function GroupLabel({ children }) {
 }
 
 export default function FormatPanel() {
+  const activeFileId = useFileStore((state) => state.activeFileId)
+  const readingMode = useEditorStore((state) => state.readingMode)
   return (
     <div
-      className="flex items-center gap-0.5 px-3 overflow-x-auto"
-      style={{ height: 51, fontFamily: 'var(--font-ui)' }}
+      className="flex items-center gap-0.5 px-3 h-full overflow-x-auto"
+      style={{ fontFamily: 'var(--font-ui)' }}
     >
       {GROUPS.map((group, gi) => (
-        <>
-          {gi > 0 && <Sep key={`sep-${gi}`} />}
-          <GroupLabel key={`lbl-${gi}`}>{group.label}</GroupLabel>
+        <Fragment key={group.label}>
+          {gi > 0 && <Sep />}
+          <GroupLabel>{group.label}</GroupLabel>
           {group.items.map((item) => (
-            <FmtButton key={item.label} {...item} />
+            <FmtButton key={item.label} {...item} disabled={!activeFileId || readingMode} />
           ))}
-        </>
+        </Fragment>
       ))}
     </div>
   )

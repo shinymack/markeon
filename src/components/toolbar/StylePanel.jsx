@@ -1,6 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { RotateCcw, ChevronDown } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useFileStore, DEFAULT_STYLE } from '../../store/useFileStore'
 import { getThemeById, BUILT_IN_THEMES } from '../../lib/themes'
 import { ensureFont } from '../../lib/fontLoader'
@@ -37,21 +35,23 @@ const MONO_FONTS = [
 ]
 
 function Sep() {
-  return <div className="self-stretch mx-2" style={{ width: 1, background: 'var(--border)' }} />
+  return <div className="h-5 self-center mx-1.5 flex-shrink-0" style={{ width: 1, background: 'var(--border)' }} />
 }
 
-function FieldLabel({ children }) {
+function FieldLabel({ children, htmlFor }) {
   return (
-    <span style={{ fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontWeight: 500 }}>
+    <label htmlFor={htmlFor} style={{ fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontWeight: 500 }}>
       {children}
-    </span>
+    </label>
   )
 }
 
 function ResetBtn({ onClick }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label="Reset to theme default"
       title="Reset to theme default"
       className="flex items-center justify-center rounded border-none cursor-pointer hover:opacity-80 flex-shrink-0"
       style={{ width: 20, height: 20, background: 'var(--surface-raised)', color: 'var(--text-muted)' }}
@@ -61,108 +61,46 @@ function ResetBtn({ onClick }) {
   )
 }
 
-function FontDropdown({ value, options, onChange }) {
-  const [open, setOpen] = useState(false)
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 })
-  const containerRef = useRef(null)
-  const btnRef = useRef(null)
-  const current = options.find((o) => o.value === value) || options[0]
-
-  function openDropdown() {
-    if (!btnRef.current) return
-    const rect = btnRef.current.getBoundingClientRect()
-    setDropPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 160) })
-    setOpen(true)
-  }
-
-  useEffect(() => {
-    if (!open) return
-    function onDown(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  function select(opt) {
-    if (opt.load) ensureFont(opt.load)
-    onChange(opt.value ?? null)
-    setOpen(false)
-  }
-
+function FontDropdown({ id, label, value, options, onChange }) {
   return (
-    <div ref={containerRef} className="relative flex-shrink-0" style={{ minWidth: 155 }}>
-      <button
-        ref={btnRef}
-        onClick={() => open ? setOpen(false) : openDropdown()}
-        className="flex items-center justify-between gap-2 w-full rounded cursor-pointer border transition-colors duration-100"
-        style={{
-          padding: '4px 8px',
-          height: 30,
-          fontSize: 12.5,
-          fontFamily: current.value || 'var(--font-ui)',
-          background: 'var(--surface-raised)',
-          borderColor: open ? 'var(--accent)' : 'var(--border)',
-          color: 'var(--text-primary)',
-        }}
-      >
-        <span className="truncate">{current.label}</span>
-        <ChevronDown size={11} style={{ flexShrink: 0, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
-      </button>
-
-      {open && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            top: dropPos.top,
-            left: dropPos.left,
-            width: dropPos.width,
-            maxHeight: 260,
-            overflowY: 'auto',
-            background: 'var(--surface-raised)',
-            border: '1px solid var(--border)',
-            borderRadius: 7,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            zIndex: 9999,
-          }}
-        >
-          {options.map((opt) => {
-            const isActive = opt.value === value
-            return (
-              <div
-                key={String(opt.value)}
-                onMouseDown={() => select(opt)}
-                className="flex items-center px-3 cursor-pointer transition-colors duration-75"
-                style={{
-                  height: 36,
-                  fontSize: opt.value ? 13 : 12,
-                  fontFamily: opt.value || 'var(--font-ui)',
-                  color: isActive ? 'var(--accent)' : 'var(--text-primary)',
-                  background: isActive ? 'var(--accent-dim)' : 'transparent',
-                  fontStyle: opt.value ? 'normal' : 'italic',
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--surface)' }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-              >
-                {opt.label}
-              </div>
-            )
-          })}
-        </div>,
-        document.body
-      )}
-    </div>
+    <select
+      id={id}
+      aria-label={label}
+      value={value ?? ''}
+      onChange={(e) => {
+        const option = options.find((item) => (item.value ?? '') === e.target.value)
+        if (option?.load) ensureFont(option.load)
+        onChange(option?.value ?? null)
+      }}
+      className="rounded flex-shrink-0"
+      style={{
+        minWidth: 155,
+        height: 30,
+        padding: '4px 8px',
+        fontSize: 12.5,
+        fontFamily: value || 'var(--font-ui)',
+        background: 'var(--surface-raised)',
+        border: '1px solid var(--border)',
+        color: 'var(--text-primary)',
+      }}
+    >
+      {options.map((option) => (
+        <option key={option.label} value={option.value ?? ''}>{option.label}</option>
+      ))}
+    </select>
   )
 }
 
-function ColorField({ label, value, themeDefault, onChange, onReset }) {
+function ColorField({ id, label, value, themeDefault, onChange, onReset }) {
   const displayVal = value || themeDefault || '#000000'
 
   return (
     <div className="flex items-center gap-1.5 flex-shrink-0">
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <input
+        id={id}
         type="color"
+        aria-label={`${label} color`}
         value={displayVal}
         onChange={(e) => onChange(e.target.value)}
         title={`${label}: ${displayVal}`}
@@ -199,34 +137,34 @@ export default function StylePanel() {
 
   return (
     <div
-      className="flex items-center gap-1 px-4 overflow-x-auto"
-      style={{ height: 51 }}
+      className="flex items-center gap-1 px-4 h-full overflow-x-auto"
     >
       <div className="flex items-center gap-2 flex-shrink-0">
-        <FieldLabel>Body Font</FieldLabel>
-        <FontDropdown value={overrides.bodyFont} options={BODY_FONTS} onChange={(v) => patch({ bodyFont: v })} />
+        <FieldLabel htmlFor="style-body-font">Body Font</FieldLabel>
+        <FontDropdown id="style-body-font" label="Body font" value={overrides.bodyFont} options={BODY_FONTS} onChange={(v) => patch({ bodyFont: v })} />
         {overrides.bodyFont && <ResetBtn onClick={() => patch({ bodyFont: null })} />}
       </div>
 
       <Sep />
 
       <div className="flex items-center gap-2 flex-shrink-0">
-        <FieldLabel>Heading Font</FieldLabel>
-        <FontDropdown value={overrides.headingFont} options={HEADING_FONTS} onChange={(v) => patch({ headingFont: v })} />
+        <FieldLabel htmlFor="style-heading-font">Heading Font</FieldLabel>
+        <FontDropdown id="style-heading-font" label="Heading font" value={overrides.headingFont} options={HEADING_FONTS} onChange={(v) => patch({ headingFont: v })} />
         {overrides.headingFont && <ResetBtn onClick={() => patch({ headingFont: null })} />}
       </div>
 
       <Sep />
 
       <div className="flex items-center gap-2 flex-shrink-0">
-        <FieldLabel>Code Font</FieldLabel>
-        <FontDropdown value={overrides.monoFont} options={MONO_FONTS} onChange={(v) => patch({ monoFont: v })} />
+        <FieldLabel htmlFor="style-mono-font">Code Font</FieldLabel>
+        <FontDropdown id="style-mono-font" label="Code font" value={overrides.monoFont} options={MONO_FONTS} onChange={(v) => patch({ monoFont: v })} />
         {overrides.monoFont && <ResetBtn onClick={() => patch({ monoFont: null })} />}
       </div>
 
       <Sep />
 
       <ColorField
+        id="style-heading-color"
         label="Heading"
         value={overrides.headingColor}
         themeDefault={tok['--color-heading']}
@@ -235,6 +173,7 @@ export default function StylePanel() {
       />
 
       <ColorField
+        id="style-accent-color"
         label="Accent"
         value={overrides.accentColor}
         themeDefault={tok['--color-accent']}
@@ -243,6 +182,7 @@ export default function StylePanel() {
       />
 
       <ColorField
+        id="style-body-color"
         label="Body text"
         value={overrides.bodyColor}
         themeDefault={tok['--color-text']}
@@ -253,6 +193,7 @@ export default function StylePanel() {
       <Sep />
 
       <ColorField
+        id="style-page-bg"
         label="Page bg"
         value={overrides.pageBg}
         themeDefault={tok['--page-bg']}

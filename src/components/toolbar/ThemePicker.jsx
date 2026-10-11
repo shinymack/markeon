@@ -16,17 +16,28 @@ export default function ThemePicker() {
     if (!open) return
     function onDown(e) {
       if (!ref.current?.contains(e.target)) setOpen(false)
+      if (e.type === 'keydown' && e.key === 'Escape') {
+        setOpen(false)
+        ref.current?.querySelector('button')?.focus()
+        return
+      }
+      if (e.type === 'keydown') return
     }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onDown)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onDown) }
   }, [open])
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div className="document-theme-picker" ref={ref} style={{ position: 'relative' }}>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         title="Document theme"
-        className="flex items-center gap-1.5 px-2.5 py-[5px] rounded text-[12px] font-medium cursor-pointer border transition-colors duration-100"
+        aria-label={`Document theme: ${currentTheme.name}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="h-[30px] inline-flex items-center gap-1.5 px-2.5 rounded text-[12px] font-medium cursor-pointer border transition-colors duration-100"
         style={{
           fontFamily: 'var(--font-ui)',
           background: open ? 'var(--surface-raised)' : 'transparent',
@@ -51,7 +62,9 @@ export default function ThemePicker() {
 
       {open && (
         <div
-          className="absolute z-50"
+          className="theme-picker-menu absolute z-50"
+          role="dialog"
+          aria-label="Document theme"
           style={{
             top: 'calc(100% + 6px)',
             right: 0,
@@ -74,7 +87,9 @@ export default function ThemePicker() {
               const isActive = theme.id === activeThemeId
               return (
                 <button
+                  type="button"
                   key={theme.id}
+                  aria-pressed={isActive}
                   onClick={() => {
                     if (activeFileId) setFileTheme(activeFileId, theme.id)
                     setOpen(false)

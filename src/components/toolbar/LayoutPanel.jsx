@@ -1,23 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RotateCcw, Lock, Unlock } from 'lucide-react'
 import { useFileStore, DEFAULT_LAYOUT } from '../../store/useFileStore'
 import { PAPER_SIZES } from '../../lib/pdf'
+import { getThemeById } from '../../lib/themes'
 
 const PAPER_KEYS = Object.keys(PAPER_SIZES)
 
-function NumInput({ value, min, max, step = 1, onChange, w = 58 }) {
+function NumInput({ id, label, value, min, max, step = 1, onChange, w = 58 }) {
+  const [draft, setDraft] = useState(String(value))
+  useEffect(() => setDraft(String(value)), [value])
+  function commit() {
+    const number = Number(draft)
+    if (!draft.trim() || !Number.isFinite(number)) { setDraft(String(value)); return }
+    const next = Math.min(max, Math.max(min, number))
+    setDraft(String(next))
+    onChange(next)
+  }
   return (
     <input
+      id={id}
       type="number"
-      value={value}
+      aria-label={label}
+      value={draft}
       min={min}
       max={max}
       step={step}
-      onChange={(e) => {
-        const v = parseFloat(e.target.value)
-        if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)))
-      }}
-      className="text-right outline-none rounded"
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setDraft(String(value)) }}
+      className="text-right outline-none rounded h-[30px]"
       style={{
         width: w,
         padding: '4px 6px',
@@ -31,25 +41,20 @@ function NumInput({ value, min, max, step = 1, onChange, w = 58 }) {
         flexShrink: 0,
       }}
       onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
+      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; commit() }}
     />
   )
 }
 
-function FieldLabel({ children }) {
-  return (
-    <span
-      style={{
-        fontSize: 11.5,
-        fontFamily: 'var(--font-ui)',
-        color: 'var(--text-muted)',
-        whiteSpace: 'nowrap',
-        fontWeight: 500,
-      }}
-    >
-      {children}
-    </span>
-  )
+function FieldLabel({ children, htmlFor }) {
+  const style = {
+    fontSize: 11.5,
+    fontFamily: 'var(--font-ui)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    fontWeight: 500,
+  }
+  return htmlFor ? <label htmlFor={htmlFor} style={style}>{children}</label> : <span style={style}>{children}</span>
 }
 
 function Unit({ children }) {
@@ -61,14 +66,16 @@ function Unit({ children }) {
 }
 
 function Sep() {
-  return <div className="self-stretch mx-2" style={{ width: 1, background: 'var(--border)' }} />
+  return <div className="h-5 self-center mx-1.5 flex-shrink-0" style={{ width: 1, background: 'var(--border)' }} />
 }
 
 function ResetBtn({ onClick }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title="Reset to theme default"
+      aria-label="Reset to theme default"
       className="flex items-center justify-center rounded border-none cursor-pointer flex-shrink-0 hover:opacity-80"
       style={{ width: 20, height: 20, background: 'var(--surface-raised)', color: 'var(--text-muted)' }}
     >
@@ -82,8 +89,10 @@ function ChipGroup({ options, value, onChange }) {
     <div className="flex rounded overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
       {options.map((opt, i) => (
         <button
+          type="button"
           key={opt.value}
           onClick={() => onChange(opt.value)}
+          aria-pressed={value === opt.value}
           className="cursor-pointer border-none transition-colors duration-100"
           style={{
             padding: '4px 10px',
@@ -112,7 +121,7 @@ export default function LayoutPanel() {
     margins: { ...DEFAULT_LAYOUT.margins, ...activeFile?.layoutSettings?.margins },
   }
 
-  const [linked, setLinked] = useState(layout.marginLinked ?? true)
+  const linked = activeFile?.layoutSettings?.marginLinked ?? true
 
   if (!activeFile) return null
 
@@ -120,11 +129,13 @@ export default function LayoutPanel() {
     setFileLayout(activeFile.id, updates)
   }
 
-  const fontSizePt = layout.fontSize ? parseFloat(layout.fontSize) : 12
-  const lineHeight = layout.lineHeight ?? 1.7
+  const themeTokens = getThemeById(activeFile.themeId)?.tokens || {}
+  const fontSize = layout.fontSize || themeTokens['--base-size'] || '12pt'
+  const fontSizePt = parseFloat(fontSize) * (fontSize.endsWith('px') ? 0.75 : 1)
+  const lineHeight = layout.lineHeight ?? (Number(themeTokens['--line-height']) || 1.7)
   const hasCustomFont = !!layout.fontSize
   const hasCustomLH = !!layout.lineHeight
-  const marginVal = parseInt(layout.margins.top) || 20
+  const marginVal = parseFloat(layout.margins.top) || 20
 
   function setLinkedMargin(mm) {
     patch({ margins: { top: `${mm}mm`, right: `${mm}mm`, bottom: `${mm}mm`, left: `${mm}mm` } })
@@ -136,14 +147,14 @@ export default function LayoutPanel() {
 
   return (
     <div
-      className="flex items-center gap-1 px-4 overflow-x-auto"
-      style={{ height: 51, fontFamily: 'var(--font-ui)' }}
+      className="flex items-center gap-1 px-4 h-full overflow-x-auto"
+      style={{ fontFamily: 'var(--font-ui)' }}
     >
 
       {/* Font size */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <FieldLabel>Font Size</FieldLabel>
-        <NumInput value={fontSizePt} min={8} max={20} step={0.5} onChange={(v) => patch({ fontSize: `${v}pt` })} />
+        <FieldLabel htmlFor="layout-font-size">Font Size</FieldLabel>
+        <NumInput id="layout-font-size" label="Font size in points" value={fontSizePt} min={8} max={20} step={0.5} onChange={(v) => patch({ fontSize: `${v}pt` })} />
         <Unit>pt</Unit>
         {hasCustomFont && <ResetBtn onClick={() => patch({ fontSize: null })} />}
       </div>
@@ -152,8 +163,10 @@ export default function LayoutPanel() {
 
       {/* Line spacing */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <FieldLabel>Line Spacing</FieldLabel>
+        <FieldLabel htmlFor="layout-line-height">Line Spacing</FieldLabel>
         <NumInput
+          id="layout-line-height"
+          label="Line spacing"
           value={typeof lineHeight === 'number' ? +lineHeight.toFixed(2) : 1.7}
           min={1.0} max={2.5} step={0.05} w={52}
           onChange={(v) => patch({ lineHeight: parseFloat(v.toFixed(2)) })}
@@ -167,12 +180,17 @@ export default function LayoutPanel() {
       <div className="flex items-center gap-2 flex-shrink-0">
         <FieldLabel>Margins</FieldLabel>
         <button
+          type="button"
           onClick={() => {
             const next = !linked
-            setLinked(next)
-            patch({ marginLinked: next })
+            patch({
+              marginLinked: next,
+              ...(next ? { margins: { top: `${marginVal}mm`, right: `${marginVal}mm`, bottom: `${marginVal}mm`, left: `${marginVal}mm` } } : {}),
+            })
           }}
           title={linked ? 'Unlock independent margins' : 'Link all margins'}
+          aria-label={linked ? 'Unlock independent margins' : 'Link all margins'}
+          aria-pressed={linked}
           className="flex items-center gap-1 px-2 rounded border-none cursor-pointer flex-shrink-0"
           style={{
             height: 28,
@@ -188,7 +206,7 @@ export default function LayoutPanel() {
 
         {linked ? (
           <div className="flex items-center gap-2">
-            <NumInput value={marginVal} min={5} max={40} w={52} onChange={setLinkedMargin} />
+            <NumInput id="layout-margin-all" label="All margins in millimeters" value={marginVal} min={5} max={40} w={52} onChange={setLinkedMargin} />
             <Unit>mm</Unit>
           </div>
         ) : (
@@ -200,9 +218,11 @@ export default function LayoutPanel() {
               { side: 'left', label: 'Left' },
             ].map(({ side, label }) => (
               <div key={side} className="flex items-center gap-1">
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{label}</span>
+                <label htmlFor={`layout-margin-${side}`} style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{label}</label>
                 <NumInput
-                  value={parseInt(layout.margins[side]) || 20}
+                  id={`layout-margin-${side}`}
+                  label={`${label} margin in millimeters`}
+                  value={parseFloat(layout.margins[side]) || 20}
                   min={5} max={40} w={44}
                   onChange={(v) => setSideMargin(side, v)}
                 />

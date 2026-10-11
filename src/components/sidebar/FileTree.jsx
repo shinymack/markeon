@@ -2,8 +2,12 @@ import { useState } from 'react'
 import { FilePlus, Trash2, FileText } from 'lucide-react'
 import { useFileStore } from '../../store/useFileStore'
 
-export default function FileTree() {
-  const { files, activeFileId, setActiveFile, createFile, deleteFile, renameFile } = useFileStore()
+export default function FileTree({ onSelect }) {
+  const { files, activeFileId, setActiveFile, createFile, deleteFile, renameFile, reportStorageError } = useFileStore()
+  function selectFile(id) { setActiveFile(id); onSelect?.() }
+  function confirmDelete(file) {
+    if (window.confirm(`Delete "${file.name}"? This cannot be undone.`)) deleteFile(file.id).catch(reportStorageError)
+  }
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
 
@@ -33,9 +37,9 @@ export default function FileTree() {
           Files
         </span>
         <button
-          onClick={() => createFile()}
+          onClick={() => { createFile(); onSelect?.() }}
           title="New file"
-          className="flex items-center justify-center w-[22px] h-[22px] rounded cursor-pointer border-none bg-transparent transition-colors duration-100"
+          className="flex items-center justify-center w-[30px] h-[30px] rounded cursor-pointer border-none bg-transparent transition-colors duration-100"
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-dim)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
@@ -51,7 +55,16 @@ export default function FileTree() {
           return (
             <div
               key={file.id}
-              onClick={() => setActiveFile(file.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${file.name}`}
+              aria-pressed={isActive}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectFile(file.id) }
+                if (e.key === 'F2') { e.preventDefault(); startRename(file, e) }
+              }}
+              onClick={() => selectFile(file.id)}
               className="group flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer min-w-0 transition-colors duration-100"
               style={{ background: isActive ? 'var(--accent-dim)' : 'transparent' }}
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--surface-raised)' }}
@@ -62,6 +75,7 @@ export default function FileTree() {
               {renamingId === file.id ? (
                 <input
                   autoFocus
+                  aria-label={`Rename ${file.name}`}
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
                   onBlur={() => commitRename(file.id)}
@@ -89,9 +103,10 @@ export default function FileTree() {
               )}
 
               <button
-                onClick={(e) => { e.stopPropagation(); deleteFile(file.id) }}
+                onClick={(e) => { e.stopPropagation(); confirmDelete(file) }}
                 title="Delete"
-                className="flex items-center justify-center w-[18px] h-[18px] rounded cursor-pointer border-none bg-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-100"
+                aria-label={`Delete ${file.name}`}
+                className="flex items-center justify-center w-[28px] h-[28px] rounded cursor-pointer border-none bg-transparent opacity-70 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-100"
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--destructive)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}

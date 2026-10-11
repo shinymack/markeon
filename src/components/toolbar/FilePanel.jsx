@@ -1,6 +1,8 @@
 import { useRef } from 'react'
-import { FilePlus, FileDown, FileUp, Copy, Trash2 } from 'lucide-react'
+import { FilePlus, FileDown, FileUp, Copy, Trash2, Image } from 'lucide-react'
 import { useFileStore } from '../../store/useFileStore'
+import { toPortableMarkdown, pickAndInsertImage } from '../../lib/images'
+import { editorViewRef, editorFileIdRef } from '../../lib/editorRef'
 
 function ActionButton({ icon: Icon, label, danger, onClick, disabled }) {
   return (
@@ -33,29 +35,44 @@ function ActionButton({ icon: Icon, label, danger, onClick, disabled }) {
 }
 
 function Sep() {
-  return <div className="self-stretch mx-2" style={{ width: 1, background: 'var(--border)' }} />
+  return <div className="h-5 self-center mx-1.5 flex-shrink-0" style={{ width: 1, background: 'var(--border)' }} />
 }
 
 export default function FilePanel() {
-  const { files, activeFileId, createFile, deleteFile, updateContent } = useFileStore()
+  const { files, activeFileId, createFile, duplicateFile, deleteFile, saveStatus, saveError, reportStorageError } = useFileStore()
   const activeFile = files.find((f) => f.id === activeFileId)
   const importRef = useRef(null)
 
   async function handleDuplicate() {
     if (!activeFile) return
-    const copy = await createFile(activeFile.name.replace('.md', '') + ' copy.md')
-    await updateContent(copy.id, activeFile.content)
+    await duplicateFile(activeFile.id)
+  }
+  async function handleInsertImage() {
+    const view = editorViewRef.current
+    if (!activeFile || !view || editorFileIdRef.current !== activeFile.id) return
+    try {
+      await pickAndInsertImage(view, activeFile.id)
+    } catch (error) {
+      reportStorageError(error)
+    }
   }
 
-  function handleExportMd() {
+  async function handleExportMd() {
     if (!activeFile) return
-    const blob = new Blob([activeFile.content], { type: 'text/markdown' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = activeFile.name
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const view = editorViewRef.current
+      const content = view && editorFileIdRef.current === activeFile.id ? view.state.doc.toString() : activeFile.content
+      const markdown = await toPortableMarkdown(content)
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = activeFile.name.endsWith('.md') ? activeFile.name : `${activeFile.name}.md`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch (error) {
+      reportStorageError(error)
+    }
   }
 
   function handleImportMd(e) {
@@ -63,27 +80,32 @@ export default function FilePanel() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = async (ev) => {
-      const text = ev.target.result
-      const newFile = await createFile(file.name)
-      await updateContent(newFile.id, text)
+      const text = String(ev.target.result || '')
+      await createFile(file.name, { content: text })
     }
     reader.readAsText(file)
     e.target.value = ''
   }
 
+
   async function handleDelete() {
     if (!activeFile) return
     if (!window.confirm(`Delete "${activeFile.name}"? This cannot be undone.`)) return
-    await deleteFile(activeFile.id)
+    try {
+      await deleteFile(activeFile.id)
+    } catch (error) {
+      reportStorageError(error)
+    }
   }
 
   return (
     <div
-      className="flex items-center gap-0.5 px-3 overflow-x-auto"
-      style={{ height: 46 }}
+      className="flex items-center gap-0.5 px-3 h-full w-full overflow-x-auto"
+      aria-label="File actions"
     >
       <ActionButton icon={FilePlus} label="New File" onClick={() => createFile()} />
       <ActionButton icon={Copy} label="Duplicate" disabled={!activeFile} onClick={handleDuplicate} />
+      <ActionButton icon={Image} label="Insert Image" disabled={!activeFile} onClick={handleInsertImage} />
 
       <Sep />
 
@@ -93,6 +115,14 @@ export default function FilePanel() {
       <Sep />
 
       <ActionButton icon={Trash2} label="Delete File" danger disabled={!activeFile} onClick={handleDelete} />
+      <span
+        role="status"
+        className="ml-auto flex-shrink-0 text-[11px] whitespace-nowrap"
+        style={{ color: saveStatus === 'error' ? 'var(--destructive, #e05555)' : 'var(--text-muted)' }}
+        title={saveStatus === 'error' && saveError ? String(saveError.message || saveError) : undefined}
+      >
+        {saveStatus === 'error' ? 'Save error' : saveStatus === 'saving' ? 'Saving…' : saveStatus === 'pending' ? 'Unsaved changes' : 'Saved'}
+      </span>
 
       <input
         ref={importRef}

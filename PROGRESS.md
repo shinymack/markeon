@@ -217,3 +217,36 @@ Three insertion methods, all convert to base64 data URIs embedded directly in th
 **Commit suggestion:** `feat: reading mode with outline zoom, document TOC, image attachments, and Vercel config`
 
 ---
+
+## [2026-10-11] Selection-based media formatting and preview/print parity
+
+**What changed:**
+
+- Landing CTA now says **Start writing**. Responsive toolbar/drawer, keyboard file actions, working font selects, and draft numeric controls replace awkward or overflowing flows.
+- Replaced image hover overlays with contextual Picture/Diagram Format selection. Images and diagrams support width/alignment; flowcharts support direction, node/rank spacing, and curves. Updates target the selected source fence, preserve surrounding Markdown and YAML, and respect effective legacy Mermaid init configuration. Mermaid still owns node layout; there is no free-form dragging.
+- Added measured physical-page pagination shared with print. Tables repeat headers and continue rows/oversized cells; paragraphs, lists, and code split within margins. Explicit page breaks are actual visible pages, including intentional trailing blanks.
+- Export flushes source/durable saves, awaits current fonts/images, and prints the same unscaled page fragments. Colors, margins, watermark, and typography remain unchanged. Slow preview images display a provisional-layout notice.
+- File-ID-bound synchronous edits and serialized per-file saves prevent switching races. Failures stay visible, theme changes preserve undo, imports/duplicates are atomic, attachment ownership survives duplication/deletion, and downloaded Markdown embeds image blobs.
+- Sanitized authored HTML without stripping generated math/highlighting; removed destructive Markdown normalization and document-wide frontmatter stripping.
+
+**Observed verification:**
+
+- Headless Chromium exercised media controls, legacy init spacing, source preservation, raw HTML safety, keyboard/mobile flows, theme/undo, rapid file switches, quota failures, attachment deletion, and portable Markdown download.
+- An 80-row table plus a 950-word oversized cell produced the same 16 A4 pages in preview and PDF, preserving all content within margins. Letter landscape produced matching 792 × 612 pt pages, including a trailing blank page.
+- Actual PDF checks covered current edits, delayed image completion/reflow, loaded fonts, and dark theme/code colors; reading-only diagram transforms and application controls were absent from print.
+- `bun run test`: 5 passing Mermaid semantic regression cases. Production build succeeded with nonfatal bundle-size and mixed static/dynamic-import warnings.
+
+**Commit suggestion:** `feat: selection-based media formatting and print-faithful paginated preview`
+
+
+## Media selection borders and per-diagram appearance
+
+- Image/SVG selection outlines now sit inside the media bounds; the left/top edges no longer disappear against clipped document containers.
+- Diagram Format exposes overall size, theme, custom node color, font family, and text size. Size uses the maximum printable aspect-preserving canvas as its reference, avoiding tall diagrams staying the same size for several percentage values.
+- Appearance edits remain local to the selected fence, preserve unrelated configuration, and update legacy init directives as well as YAML. Preset themes clear custom colors without clearing the font.
+- Diagram Format now wraps into compact rows instead of horizontal scrolling; removed the duplicate heading and trailing explanation, shortened Reset, and bounded select widths. No tests/browser checks for this layout-only adjustment, as requested.
+- Follow-up to reported clipping: replaced the `:has()` sizing override with an explicit diagram-panel class and auto-height block container, remounted panel containers on tab/media-type changes to discard stale scroll offsets, and allowed errors to wrap. No tests/browser checks for this correction, as requested.
+- Limited verification: existing five source-edit regressions pass; one headless smoke exercised image/SVG inset outlines, 100% → 50% width (382.50 → 191.24 screen px), Georgia at 20px, blue custom nodes, and Forest restoring green nodes. No broad build/PDF regression run for this increment; manual checks requested.
+
+**Commit suggestion:** `feat: unclipped media selection and per-diagram size and appearance controls`
+

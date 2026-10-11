@@ -133,25 +133,12 @@ Custom font upload: `.ttf`, `.woff`, `.woff2` stored in IndexedDB as ArrayBuffer
 
 ## App Layout
 
-3-pane workspace:
-
-```
-+----------------------------------------------------------+
-|  Ribbon Toolbar (tabbed: File / Format / Style / Layout / Export) |
-+----------+-------------------------+---------------------+
-| File     |  Editor (CodeMirror 6) |  Style Inspector    |
-| Tree     |                        |  (context panel)    |
-|          +------------------------+                     |
-| TOC /    |  Live Preview          |  Click element in   |
-| Outline  |  (with page borders)   |  preview to edit    |
-|          |                        |  its tokens         |
-+----------+------------------------+---------------------+
-```
-
-- Left sidebar: virtual file tree + document TOC/outline
-- Center: split editor (left) + live preview (right) with page boundary overlays
-- Right panel: context-sensitive style inspector
-- Top: ribbon toolbar with grouped tabs
+- Top ribbon: File, Format, Style, Layout, and Export, plus a contextual Picture/Diagram Format tab when media is selected.
+- Left sidebar: keyboard-accessible virtual file tree and document outline.
+- Desktop workspace: CodeMirror source beside a stack of measured paper pages; pointer and keyboard splitter clamped to 20–80%.
+- Compact workspace: full-width source/preview switch and a dismissible files/outline drawer.
+- Reading mode: preview, outline, zoom, and functional File/Export controls; CodeMirror stays mounted to retain editing history.
+- Media formatting uses click/keyboard selection, not hover controls. Escape or clicking outside clears the selection.
 
 ---
 
@@ -163,6 +150,10 @@ Custom font upload: `.ttf`, `.woff`, `.woff2` stored in IndexedDB as ArrayBuffer
 - **Shiki** - syntax highlighting (VS Code-quality)
 - **GFM** - GitHub Flavored Markdown (tables, task lists, strikethrough)
 - Footnotes, emoji shortcodes
+- Raw HTML is sanitized before generated KaTeX/Shiki markup is inserted.
+- Setext headings and fenced examples retain normal Markdown semantics; no destructive thematic-line preprocessing.
+- Images and Mermaid fences retain source positions for selected-element formatting. Mermaid layout remains automatic: flow direction, node/rank spacing, and connection curves are editable; free-form node dragging is not supported.
+- Preview pagination measures the rendered document after fonts and diagrams are ready. Tables repeat headers and split rows/cells; paragraphs, lists, and code continue onto subsequent pages within the configured margins.
 
 ---
 
@@ -208,11 +199,14 @@ A theme is a JSON blob of CSS custom property values. Nothing structural - purel
 **Single file only.** No batch, no merge, no zip.
 
 Mechanism: `window.print()` with print CSS.
-- `pdf.js:triggerPrint()` clones `#markeon-all-pages` into a `#markeon-print-root` div injected at the body root
-- `print.css` hides all `body > *`, reveals only `#markeon-print-root` as a natural-flow block
-- Browser paginates the block across as many pages as needed - no fixed/absolute positioning
-- `<!-- pagebreak -->` in markdown = `break-before: page` in print CSS
-- `document.title` is temporarily set to the active filename (minus `.md`) so the browser Save As dialog pre-fills the name
+- `PreviewPane` renders and measures the document at the selected paper dimensions and margins, then displays physical page cards separated by visible gaps.
+- `pdf.js:triggerPrint()` flushes the current editor and durable saves, waits for current fonts/images and measured pages, then clones those same unscaled pages into `#markeon-print-root`.
+- `print.css` hides application chrome and gives each cloned card a physical page break. `@page` has zero margins; card padding is the single source of document margins.
+- Preview and print share document typography, colors, watermark, image sizing, and table continuations. Reading-only diagram transforms and selection controls are removed from the print clone.
+- `<!-- pagebreak -->` creates a real preview and printed page, including an intentional trailing blank page. The Format ribbon includes an insertion action.
+- Slow images show a provisional-layout notice in preview; export waits for image completion and remeasures before printing.
+- The active filename temporarily supplies `document.title`; title and print-root cleanup happen on `afterprint`.
+- For matching browser PDF output, use 100% scale and disable browser headers/footers.
 
 Export settings per document:
 - Paper size: A4, Letter, Legal (via `@page { size: ... }` override)
@@ -226,9 +220,19 @@ Batch export and merged project PDF are v2.
 
 ## Image Support
 
-**Implemented (2026-05-21).** Paste in editor (Ctrl+V) saves images to IndexedDB `attachments` store; markdown uses `markeon://img/<uuid>` URLs. Rehype resolves to data URIs in preview and PDF export. Attachments are deleted when the parent file is deleted.
+Paste, drop, or choose an image to store its blob in IndexedDB `attachments`; Markdown references it with `markeon://img/<uuid>`. Preview and PDF resolve references to data URIs. Insertion is bound to the file and cursor position captured before asynchronous storage.
 
-The earlier base64-inline approach was removed in May 2026 because it bloated file records. See `PROGRESS.md` for build log.
+Selecting an image exposes width/alignment controls in Picture Format. Selecting a Mermaid block exposes Diagram Format with overall size (10–100%), alignment, automatic/default/dark/forest/neutral/base themes, a custom node color, font family, and text size (8–48 SVG px), plus flowchart-only layout controls. Diagram size scales relative to the largest aspect-preserving diagram that fits the print margins, so 50% halves the whole diagram even when it is tall. Selection outlines are inset on the image/SVG, keeping all four sides visible without affecting layout or print.
+
+Custom node colors switch to Mermaid's configurable Base theme and choose contrasting label text. Picking a preset theme clears the custom palette; font choices persist. Document font/theme options follow the paper defaults. Settings are stored inside the selected fence and update both YAML configuration and effective legacy init directives, not document-wide frontmatter. Authored Mermaid class/style rules can override theme defaults.
+
+Duplicated documents retain attachment references. File deletion atomically transfers still-referenced attachment ownership to surviving files and removes owned orphan blobs. Markdown export embeds attachment data URLs so the downloaded file is portable; missing attachments produce a visible error rather than a broken “successful” export.
+
+## Persistence and editing
+
+File state updates synchronously in memory; content saves are debounced per file and serialized durably in IndexedDB. Pending writes capture their file IDs, so switching documents does not redirect edits. Save failures remain visible even if another file saves successfully; pending or failed saves warn before unloading.
+
+Import and duplication create a complete document in one operation, including theme, layout, and style settings. Theme/font changes reconfigure the existing CodeMirror view rather than replacing it, preserving undo history. Toolbar formatting and Ctrl/Cmd+B, I, and K share commands.
 
 ---
 
@@ -245,14 +249,13 @@ The earlier base64-inline approach was removed in May 2026 because it bloated fi
 - [x] Shiki syntax highlighting: one-dark-pro, 20 languages, singleton via @shikijs/rehype
 - [x] Theme system: 8 built-in themes, per-file themeId, live token injection, ThemePicker popover
 - [x] Page layout controls: per-file font scale, margins, line height, paper size via Layout tab
-- [x] PDF export: multi-page, window.print(), natural-flow print CSS, filename in Save As
-- [x] Format tab: Bold, Italic, Strike, Inline Code, Link, H1/H2/H3, Blockquote, Lists, Code Block, Table, Divider
+- [x] PDF export: measured preview pages reused by window.print(), current assets/layout, filename in Save As
+- [x] Format tab: Bold, Italic, Strike, Inline Code, Link, H1/H2/H3, Blockquote, Lists, Code Block, Table, Divider, Page break
 - [x] File tab: New, Duplicate, Import .md, Export .md, Delete
 - [x] Style tab: per-file font overrides, heading/body color tokens
-- [x] Image support: paste to attachments store, `markeon://img/` URLs, rehype resolve
+- [x] Image support: paste/drop/picker, attachment references, selection-based formatting, portable Markdown export
 - [x] Reading mode: preview-only chrome, outline sidebar, pinch/slider zoom
 - [x] Document outline: `rehype-slug`, sidebar TOC, smooth scroll to heading
-- [ ] Style inspector panel (on hold - low priority)
 - [ ] Offline support: Service Worker + Cache API (low priority / skip for v1)
 
 ---
@@ -276,14 +279,14 @@ The earlier base64-inline approach was removed in May 2026 because it bloated fi
 | JSX only, no TypeScript | Personal project, faster iteration |
 | No FSAPI | Browser compat (Chrome-only). Virtual FS in IndexedDB is simpler and universal |
 | window.print() for PDF | No canvas artifacts, pixel-accurate, no extra dependencies |
-| Print: clone to body root | `position:fixed` on `#preview-content` broke multi-page export. Cloning to a top-level div lets browser paginate naturally |
-| Preview = A4 page cards | Discrete pages match the print output. CSS scale transform handles zoom-to-fit when pane is narrow |
+| Print: clone measured pages to body root | The exact preview fragments supply print layout; zero browser margins prevent double padding |
+| Preview = physical paper cards | A4/Letter/Legal and both orientations use shared geometry; CSS scaling affects viewing only |
 | Image attachments | `markeon://img/` refs + IndexedDB blobs; rehype inlines for preview/PDF; no base64 in file content |
 | Reading mode | CSS hides editor chrome; CodeMirror stays mounted; outline-only sidebar |
 | Document TOC | `rehype-slug` + `DocOutline`; headings scraped from preview DOM |
-| Resizable splitter = % widths | Simpler than flex-basis manipulation. MouseMove sets splitPct clamped 20-80% |
+| Resizable splitter = % widths | Pointer capture and keyboard controls clamp splitPct to 20–80%; compact screens switch panes |
 | Theme = per-file | Resumes and journals need different visual treatments. themeId stored on each IndexedDB file record |
-| Dark PDF via --page-bg | Each theme has `--page-bg` token. Injected to `:root` + print CSS reads it. `print-color-adjust: exact` forces browser to render backgrounds in PDF |
+| Document theme stays scoped | Paper/background tokens apply to document surfaces, not app chrome; exact print colors preserve dark themes |
 | Shiki singleton | Highlighter initialized once (WASM load). Processor cached after first build. Prevents re-init on every keystroke |
 | react-bits Aurora = copy-paste | Not an npm package. Copy component code directly into project |
 | Bun for everything | Faster installs, consistent with user tooling |
@@ -303,28 +306,31 @@ markeon/
 │   │   │   ├── Hero.jsx
 │   │   │   └── Aurora.jsx          (copy-pasted from react-bits, uses ogl)
 │   │   ├── editor/
-│   │   │   ├── EditorPane.jsx      (CodeMirror 6, no image handling)
-│   │   │   └── PreviewPane.jsx     (A4 page cards, zoom-to-fit, #markeon-all-pages)
+│   │   │   ├── EditorPane.jsx      (CodeMirror, captured-file autosave, paste/drop)
+│   │   │   └── PreviewPane.jsx     (measured paper pages, selection, zoom-to-fit)
 │   │   ├── sidebar/
 │   │   │   └── FileTree.jsx
 │   │   ├── toolbar/
-│   │   │   └── RibbonToolbar.jsx   (Export PDF button passes filename to triggerPrint)
-│   │   └── inspector/
-│   │       └── StyleInspector.jsx  (placeholder)
+│   │   │   ├── RibbonToolbar.jsx   (editing/reading tabs, current-document export)
+│   │   │   └── MediaFormatPanel.jsx (selection-based image/diagram controls)
 │   ├── store/
 │   │   ├── useEditorStore.js
 │   │   ├── useThemeStore.js
-│   │   └── useFileStore.js         (_bootstrapping guard prevents duplicate welcome.md)
+│   │   ├── useMediaStore.js        (selected source media)
+│   │   └── useFileStore.js         (immediate state, serialized per-file durable saves)
 │   ├── lib/
 │   │   ├── db.js                   (IndexedDB wrapper via idb)
 │   │   ├── markdown.js             (unified: remark + rehype + KaTeX)
 │   │   ├── nanoid.js
 │   │   ├── themes.js               (8 built-in theme token objects)
-│   │   └── pdf.js                  (buildPrintStyle + triggerPrint with filename)
+│   │   ├── pagination.js          (measured block/table/rich-text continuations)
+│   │   ├── media.js               (selected-source formatting and Mermaid metadata)
+│   │   ├── previewRef.js          (current preview readiness for export)
+│   │   └── pdf.js                 (current-document measured-page print lifecycle)
 │   ├── styles/
 │   │   ├── global.css              (Tailwind v4 + Umbreon tokens)
 │   │   ├── document.css            (.markeon-document typography)
-│   │   └── print.css               (multi-page natural-flow print CSS)
+│   │   └── print.css               (physical cards, shared screen/print styling)
 │   ├── pages/
 │   │   ├── HomePage.jsx
 │   │   └── AppPage.jsx             (resizable splitter, 20-80% clamped)
@@ -338,6 +344,8 @@ markeon/
 ├── package.json
 └── .gitignore
 ```
+
+Verification: `bun run test` covers Mermaid source boundaries, quoted/Windows-source fences, legacy init precedence, non-flowchart handling, and malformed YAML. `bun run build` checks the production bundle. Browser/PDF smoke scenarios are recorded in `PROGRESS.md`.
 
 ---
 

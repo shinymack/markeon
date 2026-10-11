@@ -1,7 +1,7 @@
 // Dynamically injects Google Fonts <link> tags on demand.
 // Only loads each family once per page session.
 
-const loaded = new Set()
+const loaded = new Map()
 
 const GOOGLE_FONT_URLS = {
   'Crimson Text': 'https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap',
@@ -12,12 +12,14 @@ const GOOGLE_FONT_URLS = {
 }
 
 export function ensureFont(family) {
-  if (loaded.has(family)) return
+  if (loaded.has(family)) return loaded.get(family)
   const url = GOOGLE_FONT_URLS[family]
   if (!url) return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
   link.href = url
+  const ready = new Promise((resolve) => { link.onload = () => resolve(); link.onerror = () => resolve() })
+  loaded.set(family, ready)
   document.head.appendChild(link)
-  loaded.add(family)
+  return ready
 }

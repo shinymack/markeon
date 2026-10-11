@@ -44,6 +44,7 @@ export default function Hero() {
         </p>
 
         <button
+          type="button"
           onClick={() => navigate('/app')}
           className="mt-2 inline-flex items-center gap-2 px-8 py-3.5 rounded-lg font-semibold text-base cursor-pointer border-none transition-all duration-150 hover:scale-[1.03] hover:brightness-110 active:scale-[0.98]"
           style={{
@@ -52,7 +53,7 @@ export default function Hero() {
             fontFamily: 'var(--font-ui)',
           }}
         >
-          Open App
+          Start writing
           <ArrowRight size={17} />
         </button>
 

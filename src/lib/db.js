@@ -54,9 +54,24 @@ export async function saveFile(file) {
   await database.put('files', file)
 }
 
-export async function deleteFile(id) {
+export async function deleteFile(id, attachmentIds, referenceOwners) {
   const database = await getDB()
-  await database.delete('files', id)
+  const tx = database.transaction(['files', 'attachments'], 'readwrite')
+  const attachments = tx.objectStore('attachments')
+  const owned = await attachments.index('fileId').getAll(id)
+  const candidates = new Map(owned.map((attachment) => [attachment.id, attachment]))
+  for (const attachmentId of attachmentIds) {
+    if (candidates.has(attachmentId)) continue
+    const attachment = await attachments.get(attachmentId)
+    if (attachment) candidates.set(attachmentId, attachment)
+  }
+  await tx.objectStore('files').delete(id)
+  for (const attachment of candidates.values()) {
+    const owner = referenceOwners.get(attachment.id)
+    if (!owner) await attachments.delete(attachment.id)
+    else if (attachment.fileId === id) await attachments.put({ ...attachment, fileId: owner })
+  }
+  await tx.done
 }
 
 export async function getFileCount() {
@@ -67,7 +82,14 @@ export async function getFileCount() {
 // Attachments
 export async function saveAttachment(attachment) {
   const database = await getDB()
-  await database.put('attachments', attachment)
+  const tx = database.transaction(['files', 'attachments'], 'readwrite')
+  const owner = await tx.objectStore('files').get(attachment.fileId)
+  if (!owner) {
+    await tx.done
+    throw new Error('The document was deleted before the image could be inserted.')
+  }
+  await tx.objectStore('attachments').put(attachment)
+  await tx.done
 }
 
 export async function getAttachment(id) {
@@ -78,13 +100,6 @@ export async function getAttachment(id) {
 export async function deleteAttachment(id) {
   const database = await getDB()
   await database.delete('attachments', id)
-}
-
-export async function deleteAttachmentsByIds(ids) {
-  const database = await getDB()
-  const tx = database.transaction('attachments', 'readwrite')
-  await Promise.all([...ids].map((id) => tx.store.delete(id)))
-  await tx.done
 }
 
 // Themes

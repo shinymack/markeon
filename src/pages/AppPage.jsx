@@ -1,257 +1,121 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { PanelLeftClose, PanelLeftOpen, Code2, FileText } from 'lucide-react'
 import { useFileStore } from '../store/useFileStore'
 import { useEditorStore } from '../store/useEditorStore'
+import { useMediaStore } from '../store/useMediaStore'
 import RibbonToolbar from '../components/toolbar/RibbonToolbar'
 import LayoutPanel from '../components/toolbar/LayoutPanel'
 import ExportPanel from '../components/toolbar/ExportPanel'
 import FormatPanel from '../components/toolbar/FormatPanel'
 import FilePanel from '../components/toolbar/FilePanel'
 import StylePanel from '../components/toolbar/StylePanel'
+import MediaFormatPanel from '../components/toolbar/MediaFormatPanel'
 import FileTree from '../components/sidebar/FileTree'
 import DocOutline from '../components/sidebar/DocOutline'
 import EditorPane from '../components/editor/EditorPane'
 import PreviewPane from '../components/editor/PreviewPane'
 
-
-const SPLIT_MIN = 20
-const SPLIT_MAX = 80
-
-const TAB_PANELS = {
-    File: FilePanel,
-    Format: FormatPanel,
-    Style: StylePanel,
-    Layout: LayoutPanel,
-    Export: ExportPanel,
-}
+const TAB_PANELS = { File: FilePanel, Format: FormatPanel, Style: StylePanel, Layout: LayoutPanel, Export: ExportPanel, Media: MediaFormatPanel }
 
 export default function AppPage() {
-    const loadFiles = useFileStore((s) => s.loadFiles)
-    const readingMode = useEditorStore((s) => s.readingMode)
-    useEffect(() => { loadFiles() }, [loadFiles])
+  const loadFiles = useFileStore((s) => s.loadFiles)
+  const activeFileId = useFileStore((s) => s.activeFileId)
+  const readingMode = useEditorStore((s) => s.readingMode)
+  const selection = useMediaStore((s) => s.selection)
+  const clearSelection = useMediaStore((s) => s.clearSelection)
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 900px)').matches)
+  const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia('(max-width: 900px)').matches)
+  const [view, setView] = useState('editor')
+  const [splitPct, setSplitPct] = useState(50)
+  const [activeTab, setActiveTab] = useState('Layout')
+  const [headings, setHeadings] = useState([])
+  const workAreaRef = useRef(null)
+  const previewScrollRef = useRef(null)
+  const dragging = useRef(false)
+  const previousTab = useRef('Layout')
 
-    const [splitPct, setSplitPct] = useState(50)
-    const [sidebarOpen, setSidebarOpen] = useState(true)
-    const [activeTab, setActiveTab] = useState('Layout')
-    const [headings, setHeadings] = useState([])
-    const dragging = useRef(false)
-    const workAreaRef = useRef(null)
-    const previewScrollRef = useRef(null)
+  useEffect(() => { loadFiles().catch((error) => useFileStore.getState().reportStorageError(error)) }, [loadFiles])
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 900px)')
+    const change = () => { setCompact(query.matches); setSidebarOpen(!query.matches) }
+    query.addEventListener('change', change)
+    return () => query.removeEventListener('change', change)
+  }, [])
+  useEffect(() => { clearSelection() }, [activeFileId, clearSelection])
+  useEffect(() => {
+    if (selection && !readingMode) {
+      setActiveTab((tab) => { if (tab !== 'Media') previousTab.current = tab; return 'Media' })
+      if (compact) setView('preview')
+    } else {
+      setActiveTab((tab) => tab === 'Media' ? previousTab.current : tab)
+    }
+  }, [selection?.type, selection?.fileId, selection?.from, readingMode, compact])
+  useEffect(() => {
+    if (readingMode) {
+      clearSelection()
+      setActiveTab((tab) => ['File', 'Export'].includes(tab) ? tab : 'File')
+    }
+  }, [readingMode, clearSelection])
 
-    const onMouseDown = useCallback((e) => {
-        if (readingMode) return
-        e.preventDefault()
-        dragging.current = true
-        document.body.style.cursor = 'col-resize'
-        document.body.style.userSelect = 'none'
-    }, [readingMode])
+  const scrollToHeading = useCallback((id) => {
+    const root = document.getElementById('markeon-all-pages')
+    const element = root?.querySelector(`#${CSS.escape(id)}`)
+    const scroller = previewScrollRef.current
+    if (!element || !scroller) return
+    if (compact) { setView('preview'); setSidebarOpen(false) }
+    requestAnimationFrame(() => scroller.scrollTo({ top: scroller.scrollTop + element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 24, behavior: 'smooth' }))
+  }, [compact])
 
-    useEffect(() => {
-        function onMouseMove(e) {
-            if (!dragging.current || !workAreaRef.current || readingMode) return
-            const rect = workAreaRef.current.getBoundingClientRect()
-            const pct = ((e.clientX - rect.left) / rect.width) * 100
-            setSplitPct(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct)))
-        }
-        function onMouseUp() {
-            if (!dragging.current) return
-            dragging.current = false
-            document.body.style.cursor = ''
-            document.body.style.userSelect = ''
-        }
-        window.addEventListener('mousemove', onMouseMove)
-        window.addEventListener('mouseup', onMouseUp)
-        return () => {
-            window.removeEventListener('mousemove', onMouseMove)
-            window.removeEventListener('mouseup', onMouseUp)
-        }
-    }, [readingMode])
+  const onPointerDown = (event) => {
+    if (readingMode || compact || event.button !== 0) return
+    event.preventDefault()
+    dragging.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const onPointerMove = (event) => {
+    if (!dragging.current || !workAreaRef.current) return
+    const rect = workAreaRef.current.getBoundingClientRect()
+    setSplitPct(Math.min(80, Math.max(20, (event.clientX - rect.left) / rect.width * 100)))
+  }
+  const ActivePanel = TAB_PANELS[activeTab] || FilePanel
 
-    const scrollToHeading = useCallback((id) => {
-        const el = document.getElementById(id)
-        if (!el) return
-        const scroller = previewScrollRef.current
-        if (scroller) {
-            const elTop = el.getBoundingClientRect().top
-            const scTop = scroller.getBoundingClientRect().top
-            scroller.scrollTo({ top: scroller.scrollTop + (elTop - scTop) - 24, behavior: 'smooth' })
-        } else {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-    }, [])
-
-    const ActivePanel = TAB_PANELS[activeTab] || null
-    const sidebarWidth = sidebarOpen ? 'var(--sidebar-width)' : '0px'
-
-    useEffect(() => {
-        if (readingMode) setSidebarOpen(true)
-    }, [readingMode])
-
-    return (
-        <div
-            className="flex flex-col h-dvh overflow-hidden"
-            style={{ background: 'var(--bg)' }}
-            data-reading-mode={readingMode ? 'true' : 'false'}
-        >
-
-            {/* Toolbar */}
-            <header
-                id="toolbar"
-                className="flex-shrink-0 z-50 border-b"
-                style={{
-                    background: 'var(--glass-bg)',
-                    backdropFilter: 'var(--glass-blur)',
-                    WebkitBackdropFilter: 'var(--glass-blur)',
-                    borderColor: 'var(--glass-border)',
-                }}
-            >
-                <div style={{ height: 'var(--toolbar-height)' }}>
-                    <RibbonToolbar onTabChange={setActiveTab} activeTab={activeTab} />
-                </div>
-
-                {/* Tab panel strip — hidden in reading mode */}
-                {ActivePanel && !readingMode && (
-                    <div
-                        className="border-t overflow-x-auto"
-                        style={{
-                            borderColor: 'var(--glass-border)',
-                            background: 'var(--surface)',
-                            minHeight: 51,
-                        }}
-                    >
-                        <ActivePanel />
-                    </div>
-                )}
-            </header>
-
-            <div className="flex flex-1 overflow-hidden">
-
-                {/* Sidebar */}
-                <aside
-                    id="sidebar"
-                    className="flex-shrink-0 flex flex-col overflow-hidden border-r"
-                    style={{
-                        width: sidebarWidth,
-                        minWidth: 0,
-                        transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
-                        background: 'var(--glass-bg)',
-                        backdropFilter: 'var(--glass-blur)',
-                        WebkitBackdropFilter: 'var(--glass-blur)',
-                        borderColor: sidebarOpen ? 'var(--glass-border)' : 'transparent',
-                        overflow: 'hidden',
-                    }}
-                >
-                    {!readingMode && <FileTree />}
-                    <DocOutline
-                        headings={headings}
-                        onSelect={scrollToHeading}
-                        variant={readingMode ? 'panel' : 'stacked'}
-                    />
-                </aside>
-
-                {/* Sidebar toggle — outline panel in reading mode, full sidebar otherwise */}
-                <button
-                    id="sidebar-toggle"
-                    onClick={() => setSidebarOpen((o) => !o)}
-                    title={
-                        readingMode
-                            ? (sidebarOpen ? 'Hide outline' : 'Show outline')
-                            : (sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar')
-                    }
-                    className="flex-shrink-0 flex items-center justify-center cursor-pointer border-none border-r z-10 transition-colors duration-150"
-                    style={{
-                        width: 18,
-                        background: 'var(--surface)',
-                        borderColor: 'var(--border)',
-                        borderRight: '1px solid var(--border)',
-                        color: 'var(--text-muted)',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-                >
-                    {sidebarOpen
-                        ? <PanelLeftClose size={11} />
-                        : <PanelLeftOpen size={11} />
-                    }
-                </button>
-
-                {/* Work area */}
-                <div ref={workAreaRef} className="flex flex-1 overflow-hidden min-w-0 relative">
-                    <div
-                        id="editor-pane"
-                        className="overflow-hidden"
-                        style={{ width: readingMode ? 0 : `${splitPct}%`, flexShrink: 0, borderRight: readingMode ? 'none' : '1px solid var(--border-subtle)' }}
-                    >
-                        <EditorPane />
-                    </div>
-
-                    {/* Splitter */}
-                    <div
-                        id="editor-splitter"
-                        className="flex-shrink-0 flex items-center justify-center cursor-col-resize z-10 select-none group"
-                        style={{
-                            width: readingMode ? 0 : '10px',
-                            position: 'relative',
-                            background: 'transparent',
-                            transition: 'background 150ms',
-                            overflow: 'hidden',
-                        }}
-                        onMouseDown={onMouseDown}
-                        onMouseEnter={(e) => { if (!readingMode) e.currentTarget.style.background = 'var(--accent-dim)' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                    >
-                        <div
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                bottom: 0,
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                width: '2px',
-                                background: 'var(--accent)',
-                                opacity: 0.55,
-                                transition: 'opacity 150ms',
-                            }}
-                        />
-                        <div
-                            className="group-hover:opacity-100"
-                            style={{
-                                position: 'relative',
-                                zIndex: 1,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '4px',
-                                opacity: 0.7,
-                            }}
-                        >
-                            {[0, 1, 2].map((k) => (
-                                <div key={k} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)' }} />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
-                        <PreviewPane
-                            onHeadingsChange={setHeadings}
-                            previewScrollRef={previewScrollRef}
-                        />
-                    </div>
-                </div>
-
-                {/* Inspector */}
-                <aside
-                    id="inspector"
-                    className="flex-shrink-0 flex flex-col overflow-hidden border-l"
-                    style={{
-                        width: 'var(--inspector-width)',
-                        background: 'var(--glass-bg)',
-                        backdropFilter: 'var(--glass-blur)',
-                        WebkitBackdropFilter: 'var(--glass-blur)',
-                        borderColor: 'var(--glass-border)',
-                    }}
-                >
-                </aside>
-            </div>
+  return (
+    <div className="app-workspace" data-reading-mode={readingMode ? 'true' : 'false'} data-compact={compact ? 'true' : 'false'} data-view={view} data-sidebar-open={sidebarOpen ? 'true' : 'false'}>
+      <a className="skip-link" href="#workspace-main">Skip to document</a>
+      <header id="toolbar" className="workspace-toolbar">
+        <div className="ribbon-row"><RibbonToolbar activeTab={activeTab} onTabChange={setActiveTab} /></div>
+        <div key={`${activeTab}-${selection?.type || ''}`} className={`workspace-panel${activeTab === 'Media' && selection?.type === 'mermaid' ? ' workspace-panel--diagram' : ''}`} role="region" aria-label={activeTab === 'Media' ? `${selection?.type === 'image' ? 'Picture' : 'Diagram'} formatting` : `${activeTab} controls`}>
+          <ActivePanel />
         </div>
-    )
+      </header>
+      <div className="workspace-viewbar">
+        <button type="button" onClick={() => setSidebarOpen((open) => !open)} aria-controls="sidebar" aria-expanded={sidebarOpen}>
+          {sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+          {readingMode ? 'Outline' : 'Files & outline'}
+        </button>
+        {compact && !readingMode && <div className="view-switch" role="group" aria-label="Document view">
+          <button type="button" aria-pressed={view === 'editor'} onClick={() => { setView('editor'); clearSelection() }}><Code2 size={14} />Editor</button>
+          <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}><FileText size={14} />Preview</button>
+        </div>}
+      </div>
+      <div className="workspace-body">
+        {compact && sidebarOpen && <button className="sidebar-backdrop" aria-label="Close files and outline" onClick={() => setSidebarOpen(false)} />}
+        <aside id="sidebar" className="workspace-sidebar" aria-label={readingMode ? 'Document outline' : 'Files and document outline'} hidden={!sidebarOpen}>
+          {!readingMode && <FileTree onSelect={() => { if (compact) setSidebarOpen(false) }} />}
+          <DocOutline headings={headings} onSelect={scrollToHeading} variant={readingMode ? 'panel' : 'stacked'} />
+        </aside>
+        <main id="workspace-main" ref={workAreaRef} className="workspace-main" tabIndex={-1}>
+          <div id="editor-pane" className="workspace-editor" style={{ width: `${splitPct}%` }}><EditorPane /></div>
+          <div id="editor-splitter" className="workspace-splitter" role="separator" aria-label="Editor and preview split" aria-orientation="vertical" aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(splitPct)} tabIndex={readingMode || compact ? -1 : 0}
+            onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => { dragging.current = false }} onPointerCancel={() => { dragging.current = false }}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+              event.preventDefault()
+              setSplitPct((value) => event.key === 'Home' ? 20 : event.key === 'End' ? 80 : Math.min(80, Math.max(20, value + (event.key === 'ArrowLeft' ? -5 : 5))))
+            }}><span /></div>
+          <div className="workspace-preview"><PreviewPane onHeadingsChange={setHeadings} previewScrollRef={previewScrollRef} /></div>
+        </main>
+      </div>
+    </div>
+  )
 }

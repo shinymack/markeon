@@ -13,6 +13,7 @@
   overflow-x: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
+  display: flow-root;
 }
 
 .markeon-document h1,
@@ -27,6 +28,8 @@
   font-weight: 700;
   margin-top: 2em;
   margin-bottom: 0.5em;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .markeon-document h1 { font-size: 2.2em; margin-top: 0; }
@@ -70,6 +73,7 @@
   border-radius: 0;
   font-family: inherit !important;
 }
+.markeon-document pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Fallback pre (non-Shiki) */
 .markeon-document pre:not(.shiki) {
@@ -92,7 +96,7 @@
 .markeon-document blockquote {
   border-left: 3px solid var(--color-accent, #8b3a3a);
   padding-left: 1em;
-  color: #666;
+  color: var(--color-text, #666);
   margin: 1em 0;
   font-style: italic;
 }
@@ -134,33 +138,65 @@
   margin: 2em 0;
 }
 
+.markeon-document figure {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 1.5em 0;
+  box-sizing: border-box;
+}
+
+.markeon-document figure[data-align='left'],
+.markeon-document figure.align-left { align-items: flex-start; text-align: left; }
+.markeon-document figure[data-align='right'],
+.markeon-document figure.align-right { align-items: flex-end; text-align: right; }
+.markeon-document figure[data-align='center'],
+.markeon-document figure.align-center { align-items: center; text-align: center; }
+
+.markeon-document figcaption {
+  font-size: 0.85em;
+  color: var(--color-text, #777);
+  margin-top: 0.5em;
+  text-align: center;
+  font-style: italic;
+}
+
 .markeon-document img {
-  display: block;
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-  margin: 1em auto;
+  display: block;
+  margin: 0;
+  object-fit: contain;
 }
 
-/* Page break marker (preview only) */
-.markeon-document .page-break {
-  border-top: 2px dashed var(--accent, #e8b84b);
-  margin: 2em 0;
-  opacity: 0.4;
-  position: relative;
+.markeon-document table { table-layout: fixed; }
+.markeon-document td, .markeon-document th { overflow-wrap: anywhere; }
+.markeon-document .table-continuation { margin-top: 0; }
+.markeon-document .page-continuation { margin-top: 0; }
+.markeon-document .mermaid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  overflow: hidden;
 }
-
-.markeon-document .page-break::after {
-  content: 'page break';
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--preview-bg, white);
-  padding: 0 8px;
-  font-size: 10px;
-  color: var(--accent, #b8860b);
+.markeon-document figure[data-align="left"] .mermaid { justify-content: flex-start; }
+.markeon-document figure[data-align="right"] .mermaid { justify-content: flex-end; }
+.markeon-document .mermaid svg {
+  max-width: 100%;
+  flex-shrink: 0;
+  display: block;
+  transform-origin: center center;
+}
+.markeon-document .diagram-error {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--destructive);
+  padding: 12px;
   font-family: var(--font-ui);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
+.markeon-document .diagram-error pre { white-space: pre-wrap; font-size: 11px; }
+
+/* Consumed by the measured paginator; markers never become fake page lines. */
+.markeon-document .page-break { display: none; }

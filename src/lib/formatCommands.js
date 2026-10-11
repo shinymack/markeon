@@ -1,4 +1,6 @@
-import { editorViewRef } from './editorRef'
+import { editorViewRef, editorFileIdRef } from './editorRef'
+import { pickAndInsertImage } from './images'
+import { useFileStore } from '../store/useFileStore'
 
 function getView() {
   return editorViewRef.current
@@ -64,12 +66,16 @@ function toggleLinePrefix(prefix) {
 function insertAtCursor(text) {
   const view = getView()
   if (!view) return
-  const { from, to } = view.state.selection.main
+  const { from, to } = view.state.selection?.main || { from: 0, to: 0 }
   view.dispatch({
     changes: { from, to, insert: text },
     selection: { anchor: from + text.length },
+    scrollIntoView: true,
   })
-  view.focus()
+  setTimeout(() => {
+    view.focus()
+    view.contentDOM?.focus()
+  }, 10)
 }
 
 // Set heading level on current line (1-3). Removes any existing heading prefix first.
@@ -132,4 +138,37 @@ export function horizontalRule() {
 export function table() {
   const tpl = `\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell     | Cell     | Cell     |\n`
   insertAtCursor(tpl)
+}
+export function mermaidDiagram() {
+  const tpl = `\n\`\`\`mermaid\ngraph TD\n    A[Start] --> B{Is it responsive?}\n    B -- Yes --> C[Render clean diagram]\n    B -- No --> D[Adjust SVG width]\n\`\`\`\n`
+  insertAtCursor(tpl)
+}
+
+export async function image() {
+  const view = getView()
+  const fileId = editorFileIdRef.current
+  if (!view || !fileId) return
+  try { await pickAndInsertImage(view, fileId) }
+  catch (error) { useFileStore.getState().reportStorageError(error) }
+}
+
+export function pageBreak() {
+  insertAtCursor('\n\n<!-- pagebreak -->\n\n')
+}
+
+export const FORMAT_SHORTCUTS = Object.freeze({
+  b: bold,
+  i: italic,
+  k: link,
+})
+
+// EditorPane owns keyboard event registration and persistence. Keeping the
+// mapping here ensures keyboard and toolbar formatting produce identical edits.
+export function runFormatShortcut(event) {
+  if (!event || (!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return false
+  const action = FORMAT_SHORTCUTS[event.key?.toLowerCase()]
+  if (!action) return false
+  event.preventDefault()
+  action()
+  return true
 }

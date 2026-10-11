@@ -5,7 +5,7 @@ let _promise = null
 export function getHighlighter() {
   if (!_promise) {
     _promise = createHighlighter({
-      themes: ['one-dark-pro'],
+      themes: ['one-dark-pro', 'github-light'],
       langs: [
         'javascript', 'typescript', 'jsx', 'tsx', 'python',
         'bash', 'sh', 'json', 'html', 'css', 'markdown',
